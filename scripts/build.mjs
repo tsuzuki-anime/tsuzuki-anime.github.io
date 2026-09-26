@@ -28,7 +28,7 @@ const seasonPath = (s) => `saison/${SEASON_SLUG[s.season]}-${s.year}.html`;
 
 // Slugs uniques
 const used = new Set();
-for (const m of data.media) {
+for (const m of [...data.media].sort((a, b) => a.id - b.id)) {
   let s = slugify(nameOf(m));
   if (used.has(s)) s = `${s}-${m.id}`;
   used.add(s);
@@ -91,6 +91,7 @@ ${adsHead}
   <a class="logo" href="${rel}index.html">${esc(cfg.siteName)}<span>.</span></a>
   <nav aria-label="Menu principal">
     <a href="${rel}calendrier.html">Calendrier</a>
+    <a href="${rel}catalogue.html">Tous les animés</a>
     <a href="${rel}${seasonPath(data.current)}">Saison en cours</a>
     <a href="${rel}${seasonPath(data.next)}">Prochaine saison</a>
   </nav>
@@ -237,6 +238,45 @@ ${adSlot()}`;
   pages.push({ path: seasonPath(s), html: page({ path: seasonPath(s), rel, title: `Animés ${lab} : la liste complète et où les regarder`, desc: `Tous les animés de la saison ${lab}, classés par popularité, avec les plateformes légales pour les regarder en Belgique.`, body }) });
 }
 
+// ---------- Catalogue A-Z ----------
+{
+  const letterOf = (m) => {
+    const c = nameOf(m).normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toLowerCase();
+    return /[a-z]/.test(c) ? c : "0-9";
+  };
+  const groups = new Map();
+  for (const m of data.media) {
+    const l = letterOf(m);
+    if (!groups.has(l)) groups.set(l, []);
+    groups.get(l).push(m);
+  }
+  const letters = [...groups.keys()].sort((a, b) => (a === "0-9" ? -1 : b === "0-9" ? 1 : a.localeCompare(b)));
+  const letterNav = (rel, current) => `<nav class="letters" aria-label="Lettres">${letters.map((l) => `<a href="${rel}catalogue/${l}.html"${l === current ? ' aria-current="page"' : ""}>${l.toUpperCase()}</a>`).join("")}</nav>`;
+  const row = (m, rel) => `<a class="row" href="${rel}anime/${m.slug}.html"><span><b>${esc(nameOf(m))}</b><small>${esc(FORMAT_FR[m.format] || m.format || "")}${m.seasonYear ? " · " + m.seasonYear : ""}${m.title.romaji && m.title.romaji !== nameOf(m) ? " · " + esc(m.title.romaji) : ""}</small></span><span class="chips">${chips(m, 3)}</span></a>`;
+  for (const l of letters) {
+    const rel = "../";
+    const list = groups.get(l).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr"));
+    const L = l.toUpperCase();
+    const body = `
+<h1>Tous les animés : ${L}</h1>
+<p class="lead">${list.length} animés commençant par ${L}, avec les plateformes légales où les regarder en Belgique.</p>
+${letterNav(rel, l)}
+<div class="rows">${list.map((m) => row(m, rel)).join("")}</div>
+${adSlot()}`;
+    pages.push({ path: `catalogue/${l}.html`, html: page({ path: `catalogue/${l}.html`, rel, title: `Animés de A à Z : lettre ${L} | où les regarder en Belgique`, desc: `Liste des animés commençant par ${L} et les plateformes légales pour les regarder en Belgique.`, body }) });
+  }
+  const rel = "";
+  const top = [...data.media].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 100);
+  const body = `
+<h1>Tous les animés et où les regarder</h1>
+<p class="lead">${data.media.length} animés, des classiques aux sorties de la saison, avec les plateformes légales disponibles en Belgique. Choisis une lettre ou parcours les 100 plus populaires.</p>
+${letterNav(rel, null)}
+<h2>Les 100 animés les plus populaires</h2>
+<div class="rows">${top.map((m) => row(m, rel)).join("")}</div>
+${adSlot()}`;
+  pages.push({ path: "catalogue.html", html: page({ path: "catalogue.html", rel, title: "Tous les animés de A à Z et où les regarder légalement en Belgique", desc: "Le catalogue complet des animés, des classiques aux nouveautés, avec les plateformes légales pour les regarder en Belgique.", body }) });
+}
+
 // ---------- Accueil ----------
 {
   const rel = "";
@@ -255,7 +295,7 @@ ${adSlot()}`;
 </section>
 ${firstDay ? `<section><h2>Les sorties du jour</h2><p class="sub">${esc(firstDay[1].label)}, à l'heure belge. <a href="calendrier.html">Toute la semaine →</a></p>${firstDay[1].items.slice(0, 8).map((e) => epRow(e, rel)).join("")}</section>` : ""}
 ${adSlot()}
-<section><h2>Populaires en ce moment</h2><div class="grid">${popular.map((m) => card(m, rel)).join("")}</div></section>
+<section><h2>Populaires en ce moment</h2><p class="sub">Tu cherches un classique ? <a href="catalogue.html">Voir tous les animés de A à Z →</a></p><div class="grid">${popular.map((m) => card(m, rel)).join("")}</div></section>
 <section><h2>Qu'est-ce qu'on regarde ce soir ?</h2><p class="sub">Choisis ton humeur, on te trouve un animé.</p>
 <div class="moods" id="moods" role="group" aria-label="Humeur"></div><div class="pick" id="pick"></div>
 <script type="application/json" id="pickdata">${JSON.stringify(pickData).replace(/</g, "\\u003c")}</script></section>`;
@@ -270,6 +310,7 @@ pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: 
 await rm(OUT, { recursive: true, force: true });
 await mkdir(new URL("anime/", OUT), { recursive: true });
 await mkdir(new URL("saison/", OUT), { recursive: true });
+await mkdir(new URL("catalogue/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
 const search = data.media.map((m) => ({ t: nameOf(m), a: [m.title.romaji, m.title.native].filter(Boolean).join(" "), u: `anime/${m.slug}.html`, p: streaming(m).map((l) => l.site).slice(0, 3) }));
