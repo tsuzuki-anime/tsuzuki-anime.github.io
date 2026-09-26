@@ -175,6 +175,24 @@ const altTitles = (m) => [...new Set([m.titleFr, m.title.english, m.title.romaji
 const trailerUrl = (m) => (m.trailer?.site === "youtube" && m.trailer.id ? `https://www.youtube.com/watch?v=${encodeURIComponent(m.trailer.id)}` : "");
 const affiliate = (site) => cfg.affiliates?.[site] || Object.entries(BE_PLATFORMS).filter(([, v]) => v === site).map(([k]) => cfg.affiliates?.[k]).find(Boolean) || "";
 
+// ---------- Correspondance avec la version anglaise (/en/) ----------
+const SEASON_EN_SLUG = { hiver: "winter", printemps: "spring", ete: "summer", automne: "fall" };
+function enPathOf(p) {
+  const fixed = { "index.html": "en/index.html", "calendrier.html": "en/calendar.html", "catalogue.html": "en/catalog.html", "plateformes.html": "en/platforms.html", "genres.html": "en/genres.html", "a-propos.html": "en/about.html", "confidentialite.html": "en/privacy.html", "mentions-legales.html": "en/legal.html" };
+  if (fixed[p]) return fixed[p];
+  let m;
+  if ((m = p.match(/^anime\/(.+)$/))) return "en/anime/" + m[1];
+  if ((m = p.match(/^catalogue\/(.+)$/))) return "en/catalog/" + m[1];
+  if ((m = p.match(/^plateforme\/(.+)$/))) return "en/platform/" + m[1];
+  if ((m = p.match(/^saison\/([a-z]+)-(\d+)\.html$/))) return `en/season/${SEASON_EN_SLUG[m[1]]}-${m[2]}.html`;
+  if ((m = p.match(/^genre\/(.+)\.html$/))) { const gp = GENRE_PAGES.find((x) => x.slug === m[1]); return gp ? `en/genre/${slugify(gp.g)}.html` : null; }
+  return null;
+}
+const hreflangs = (frPath, enPath) => {
+  const fr = `${SITE}/${frPath}`.replace(/index\.html$/, ""), en = `${SITE}/${enPath}`.replace(/index\.html$/, "");
+  return `<link rel="alternate" hreflang="fr" href="${esc(fr)}">\n<link rel="alternate" hreflang="en" href="${esc(en)}">\n<link rel="alternate" hreflang="x-default" href="${esc(en)}">`;
+};
+
 // ---------- Mise en page commune ----------
 const adsHead = cfg.adsenseClient
   ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${esc(cfg.adsenseClient)}" crossorigin="anonymous"></script>`
@@ -185,8 +203,9 @@ const adSlot = () => (cfg.adsenseClient
 
 function page({ path, title, desc, body, rel, jsonld, image }) {
   const canonical = `${SITE}/${path}`.replace(/index\.html$/, "");
+  const enPath = enPathOf(path);
   return `<!doctype html>
-<html lang="fr">
+<html lang="fr" data-idx="${BASE}search.json">
 
 <head>
 <meta charset="utf-8">
@@ -194,6 +213,7 @@ function page({ path, title, desc, body, rel, jsonld, image }) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${esc(canonical)}">
+${enPath ? hreflangs(path, enPath) : ""}
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:type" content="website">
@@ -222,6 +242,7 @@ ${adsHead}
       <a href="${rel}plateformes.html">Plateformes</a>
       <label class="hreg" title="Ta région : les plateformes affichées s'adaptent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Ta région">${REGIONS.map(([r, , sh]) => `<option value="${r}">${esc(sh)}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Rechercher un animé…" aria-label="Rechercher un animé" autocomplete="off"><div class="hres results" hidden></div></div>
+      <a class="lang" href="${BASE}${(enPath || "en/index.html").replace(/index\.html$/, "")}" hreflang="en" lang="en" title="English version">EN</a>
     </nav>
   </div>
 </header>
@@ -610,8 +631,12 @@ await writeFile(new URL("search.json", OUT), JSON.stringify(search));
   for (const [name, cls, regions] of Object.values(SERVICES)) svc[name] = [cls, regions];
   await writeFile(new URL("world.js", OUT), `window.TZW=${JSON.stringify({ s: svc, r: REGIONS.map(([r, l]) => [r, l]) })};`);
 }
+// ---------- Version anglaise ----------
+const { buildEn } = await import("./build-en.mjs");
+const enPaths = await buildEn({ data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
-await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter((p) => p.path !== "404.html").map((p) => `<url><loc>${esc(`${SITE}/${p.path}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
+const allPaths = [...pages.filter((p) => p.path !== "404.html").map((p) => p.path), ...enPaths];
+await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${allPaths.map((p) => `<url><loc>${esc(`${SITE}/${p}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
 await writeFile(new URL("manifest.webmanifest", OUT), JSON.stringify({ name: `${cfg.siteName} : où regarder tes animés`, short_name: cfg.siteName, start_url: BASE, scope: BASE, display: "standalone", background_color: "#0B0C16", theme_color: "#0B0C16", lang: "fr", icons: [{ src: `${BASE}icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }));
 await writeFile(new URL("robots.txt", OUT), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
-console.log(`Site généré : ${pages.length} pages dans dist/`);
+console.log(`Site généré : ${pages.length} pages en français + ${enPaths.length} en anglais dans dist/`);
