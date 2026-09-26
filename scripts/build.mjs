@@ -98,6 +98,75 @@ const searchLinks = (m) => {
   ];
 };
 const PLATFORM_SLUG = { "Crunchyroll": "crunchyroll", "Netflix": "netflix", "ADN": "adn", "Prime Video": "prime-video", "Disney+": "disney-plus" };
+
+// ---------- Le monde : régions et plateformes ----------
+// Les liens AniList ne disent pas dans quels pays un titre est disponible : on indique donc les plateformes
+// qui ont l'animé ET qui sont présentes dans la région choisie (le catalogue exact peut varier selon le pays).
+const REGIONS = [
+  ["fr", "France et pays francophones", "France"],
+  ["us", "États-Unis et Canada", "USA / Canada"],
+  ["uk", "Royaume-Uni et Irlande", "Royaume-Uni"],
+  ["de", "Allemagne, Autriche, Suisse", "Allemagne"],
+  ["eu", "Reste de l'Europe", "Europe"],
+  ["latam", "Amérique latine et Brésil", "Amérique latine"],
+  ["jp", "Japon", "Japon"],
+  ["cn", "Chine", "Chine"],
+  ["asia", "Asie et Océanie", "Asie / Océanie"],
+];
+const R_ALL = REGIONS.map(([r]) => r);
+const noCN = R_ALL.filter((r) => r !== "cn");
+const noJPCN = R_ALL.filter((r) => r !== "cn" && r !== "jp");
+// nom affiché, classe de couleur, régions où le service est présent
+const SERVICES = {
+  "Crunchyroll": ["Crunchyroll", "cr", noJPCN],
+  "Netflix": ["Netflix", "nf", noCN],
+  "ADN": ["ADN", "adn", ["fr"]],
+  "Animation Digital Network": ["ADN", "adn", ["fr"]],
+  "Amazon Prime Video": ["Prime Video", "pv", noCN],
+  "Prime Video": ["Prime Video", "pv", noCN],
+  "Disney Plus": ["Disney+", "dp", noCN],
+  "Disney+": ["Disney+", "dp", noCN],
+  "Hulu": ["Hulu", "hu", ["us"]],
+  "HIDIVE": ["HIDIVE", "hd", ["us", "uk"]],
+  "Adult Swim": ["Adult Swim", "other", ["us"]],
+  "Max": ["Max", "mx", ["us", "latam", "eu"]],
+  "Tubi TV": ["Tubi", "other", ["us", "uk", "latam"]],
+  "Hoopla": ["Hoopla", "other", ["us"]],
+  "RetroCrush": ["RetroCrush", "other", ["us"]],
+  "Crackle": ["Crackle", "other", ["us"]],
+  "Criterion Channel": ["Criterion Channel", "other", ["us"]],
+  "Cineverse": ["Cineverse", "other", ["us"]],
+  "Midnight Pulp": ["Midnight Pulp", "other", ["us"]],
+  "AsianCrush": ["AsianCrush", "other", ["us"]],
+  "Apple TV+": ["Apple TV+", "other", noCN],
+  "Star+": ["Star+", "other", ["latam"]],
+  "OceanVeil": ["OceanVeil", "other", ["us", "uk", "fr", "de", "eu"]],
+  "Viki": ["Viki", "other", noCN],
+  "Vimeo": ["Vimeo", "other", noCN],
+  "YouTube": ["YouTube", "yt", noCN],
+  "Coolmic": ["Coolmic", "other", noCN],
+  "Japanese Film Archives": ["Japanese Film Archives", "other", noCN],
+  "Bilibili TV": ["Bilibili TV", "bb", ["asia", "latam", "us", "eu", "fr", "uk", "de"]],
+  "Bilibili": ["Bilibili (Chine)", "bb", ["cn"]],
+  "iQ": ["iQIYI", "iq", ["asia", "latam", "us"]],
+  "iQ.com": ["iQIYI", "iq", ["asia", "latam", "us"]],
+  "iQIYI": ["iQIYI (Chine)", "iq", ["cn"]],
+  "WeTV": ["WeTV", "other", ["asia"]],
+  "Tencent Video": ["Tencent Video", "other", ["cn"]],
+  "Youku": ["Youku", "other", ["cn"]],
+  "Youku TV": ["Youku", "other", ["cn"]],
+  "Laftel": ["Laftel", "other", ["asia"]],
+  "Niconico Video": ["Niconico", "other", ["jp"]],
+  "Bandai Channel": ["Bandai Channel", "other", ["jp"]],
+};
+const worldLinks = (m) => {
+  const seen = new Set();
+  return (m.externalLinks || [])
+    .filter((l) => l.type === "STREAMING" && SERVICES[l.site])
+    .map((l) => ({ url: l.url, site: SERVICES[l.site][0], cls: SERVICES[l.site][1], regions: SERVICES[l.site][2] }))
+    .filter((l) => !seen.has(l.site) && seen.add(l.site));
+};
+const WORLD_SLUG = (name) => slugify(name.replace("+", " plus"));
 const GENRE_PAGES = Object.entries(GENRE_FR).filter(([g]) => g !== "Ecchi").map(([g, fr]) => ({ g, fr, slug: slugify(fr) }));
 const genreSlug = Object.fromEntries(GENRE_PAGES.map((x) => [x.g, x.slug]));
 const LATIN = /^[\p{Script=Latin}\p{N}\p{P}\p{Zs}\p{S}]+$/u;
@@ -151,6 +220,7 @@ ${adsHead}
       <a href="${rel}calendrier.html">Calendrier</a>
       <a href="${rel}catalogue.html">Catalogue</a>
       <a href="${rel}plateformes.html">Plateformes</a>
+      <label class="hreg" title="Ta région : les plateformes affichées s'adaptent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Ta région">${REGIONS.map(([r, , sh]) => `<option value="${r}">${esc(sh)}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Rechercher un animé…" aria-label="Rechercher un animé" autocomplete="off"><div class="hres results" hidden></div></div>
     </nav>
   </div>
@@ -162,13 +232,14 @@ ${body}
   <div class="wrap foot-in">
     <div class="foot-brand">
       <a class="logo" href="${rel}index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
-      <p>Le guide gratuit pour savoir où regarder tes animés légalement, en France, en Belgique, en Suisse et au Canada. Nous ne diffusons aucune vidéo : nous renvoyons uniquement vers les plateformes officielles.</p>
+      <p>Le guide gratuit pour savoir où regarder tes animés légalement, en France, dans les pays francophones et dans le monde entier (USA, Japon, Asie, Amérique latine…). Nous ne diffusons aucune vidéo : nous renvoyons uniquement vers les plateformes officielles.</p>
     </div>
     <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}plateformes.html">Par plateforme</a><a href="${rel}genres.html">Par genre</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
     <div><h3>Informations</h3><a href="${rel}a-propos.html">À propos</a><a href="${rel}mentions-legales.html">Mentions légales</a><a href="${rel}confidentialite.html">Confidentialité</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure de Paris et Bruxelles (convertis automatiquement si vous êtes ailleurs), mis à jour chaque jour · Certains liens peuvent être affiliés.</div>
 </footer>
+<script src="${rel}world.js" defer></script>
 <script src="${rel}app.js" defer></script>
 </body>
 </html>`;
@@ -176,6 +247,10 @@ ${body}
 
 const PCLASS = { "Crunchyroll": "cr", "Netflix": "nf", "ADN": "adn", "Prime Video": "pv", "Disney+": "dp" };
 function chips(m, max = 4) {
+  const w = worldLinks(m).map((l) => l.site);
+  return `<span class="chipset" data-w="${esc(w.join("|"))}" data-max="${max}">${chipsFr(m, max)}</span>`;
+}
+function chipsFr(m, max) {
   const links = streaming(m).slice(0, max);
   if (!links.length) {
     const o = others(m).slice(0, max);
@@ -206,6 +281,11 @@ function animePage(m) {
   const links = streaming(m);
   const oth = others(m);
   const fam = family(m);
+  const wl = worldLinks(m);
+  const worldHtml = `<section class="box world" id="monde"><h2>Où le regarder dans le monde</h2><p class="small">Plateformes qui proposent ${esc(name)} et qui sont présentes dans chaque région. Le catalogue exact peut varier d'un pays à l'autre : vérifiez sur la plateforme depuis votre pays.</p><div class="wtable">${REGIONS.map(([r, label]) => {
+    const ls = wl.filter((l) => l.regions.includes(r));
+    return `<div class="wrow" data-region="${r}"><span class="wr">${esc(label)}</span><span class="wl">${ls.length ? ls.map((l) => `<a class="chip p-${l.cls}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>${esc(l.site)}</a>`).join("") : `<span class="chip muted">Aucune plateforme connue</span>`}</span></div>`;
+  }).join("")}</div></section>`;
   const studio = m.studios?.nodes?.[0]?.name;
   const next = m.nextAiringEpisode;
   const genres = (m.genres || []).map((g) => GENRE_FR[g] || g);
@@ -270,7 +350,8 @@ function animePage(m) {
   <div class="fbody">
     <div class="fmain">
       ${nextHtml}
-      <section class="box"><h2>Plateformes légales</h2>${where}${othHtml}${findHtml}</section>
+      <section class="box frbox"><h2>Plateformes légales en France</h2>${where}${othHtml}${findHtml}</section>
+      ${worldHtml}
       ${adSlot()}
       <section class="box"><h2>À propos</h2><p>${intro}</p>${(m.genres || []).length ? `<div class="tags">${(m.genres || []).map((g) => genreSlug[g] ? `<a href="${rel}genre/${genreSlug[g]}.html">${esc(GENRE_FR[g] || g)}</a>` : `<span>${esc(GENRE_FR[g] || g)}</span>`).join("")}</div>` : ""}${alts.length ? `<p class="small">Autres titres : ${esc(alts.join(", "))}.</p>` : ""}</section>
       <section class="box"><h2>Questions fréquentes</h2><dl class="faq">${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl></section>
@@ -349,12 +430,38 @@ for (const pl of platformPages) {
 ${adSlot()}`;
   pages.push({ path: `plateforme/${pl.slug}.html`, html: page({ path: `plateforme/${pl.slug}.html`, rel, title: `Animés sur ${pl.site} : la liste complète (${pl.list.length} titres)`, desc: `Tous les animés disponibles sur ${pl.site} en France et en Belgique, classés par popularité : ${pl.list.slice(0, 5).map(nameOf).join(", ")}…`, body, image: cover(pl.list[0]) }) });
 }
+// Plateformes du reste du monde
+const regionLabel = Object.fromEntries(REGIONS.map(([r, l]) => [r, l]));
+const worldPages = [];
+{
+  const seenN = new Set(Object.keys(PLATFORM_SLUG));
+  for (const [name, cls, regions] of Object.values(SERVICES)) {
+    if (seenN.has(name)) continue;
+    seenN.add(name);
+    const list = data.media.filter((m) => worldLinks(m).some((l) => l.site === name)).sort(byPop);
+    if (list.length < 3) continue;
+    worldPages.push({ name, cls, regions, slug: WORLD_SLUG(name), list });
+  }
+}
+for (const pl of worldPages) {
+  const rel = "../";
+  const where = pl.regions.length >= 7 ? "dans la plupart des pays" : pl.regions.map((r) => regionLabel[r]).join(", ");
+  const body = `
+<div class="phead"><p class="eyebrow">Plateforme · monde</p><h1>Les animés disponibles sur ${esc(pl.name)}</h1>
+<p class="lead">${pl.list.length.toLocaleString("fr-FR")} animés proposés sur ${esc(pl.name)}, classés par popularité. Service présent : ${esc(where)}. Le catalogue exact varie selon les pays.</p></div>
+<div class="pgrid">${pl.list.slice(0, 400).map((m) => card(m, rel)).join("")}</div>
+${adSlot()}`;
+  pages.push({ path: `plateforme/${pl.slug}.html`, html: page({ path: `plateforme/${pl.slug}.html`, rel, title: `Animés sur ${pl.name} : la liste (${pl.list.length} titres)`, desc: `Les animés disponibles sur ${pl.name} (${where}) : ${pl.list.slice(0, 5).map(nameOf).join(", ")}…`, body, image: cover(pl.list[0]) }) });
+}
 {
   const rel = "";
   const body = `
 <div class="phead"><p class="eyebrow">Plateformes</p><h1>Où regarder des animés légalement&nbsp;?</h1>
 <p class="lead">Les plateformes de streaming légal d'animés en France, en Belgique et dans les pays francophones, avec leur catalogue.</p></div>
-<div class="ptiles">${platformPages.map((pl) => `<a class="ptile p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><span class="ptile-posters">${pl.list.slice(0, 4).map((m) => poster(m, "medium")).join("")}</span><span class="ptile-b"><b><i></i>${esc(pl.site)}</b><small>${pl.list.length.toLocaleString("fr-FR")} animés</small><span>${esc(PLATFORM_INFO[pl.site] || "")}</span></span></a>`).join("")}</div>`;
+<div class="ptiles">${platformPages.map((pl) => `<a class="ptile p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><span class="ptile-posters">${pl.list.slice(0, 4).map((m) => poster(m, "medium")).join("")}</span><span class="ptile-b"><b><i></i>${esc(pl.site)}</b><small>${pl.list.length.toLocaleString("fr-FR")} animés</small><span>${esc(PLATFORM_INFO[pl.site] || "")}</span></span></a>`).join("")}</div>
+<h2 class="sec">Dans le reste du monde</h2>
+<p class="sub">Les plateformes légales d'autres pays : États-Unis, Japon, Chine, Asie, Amérique latine… Choisis ta région en haut de la page pour adapter l'affichage.</p>
+<div class="pchips">${worldPages.map((pl) => `<a class="pchip p-${pl.cls}" href="plateforme/${pl.slug}.html"><i></i>${esc(pl.name)}<small>${pl.list.length.toLocaleString("fr-FR")}</small></a>`).join("")}</div>`;
   pages.push({ path: "plateformes.html", html: page({ path: "plateformes.html", rel, title: "Plateformes de streaming d'animés légales : Crunchyroll, ADN, Netflix…", desc: "Comparez les plateformes légales pour regarder des animés en France et en Belgique : Crunchyroll, ADN, Netflix, Prime Video, Disney+.", body }) });
 }
 const genrePages = GENRE_PAGES.map((x) => ({ ...x, list: data.media.filter((m) => (m.genres || []).includes(x.g)).sort(byPop) })).filter((x) => x.list.length >= 5);
@@ -419,7 +526,7 @@ ${adSlot()}`;
 <div class="phead"><p class="eyebrow">Catalogue</p><h1>Tous les animés et où les regarder</h1>
 <p class="lead">${data.media.length.toLocaleString("fr-BE")} animés, des grands classiques aux sorties de la saison, avec les plateformes légales disponibles en France et en Belgique.</p></div>
 <section class="filters" id="filters" aria-label="Filtres">
-  <label>Plateforme<select id="f-p"><option value="">Toutes</option>${Object.keys(PLATFORM_SLUG).map((p) => `<option>${esc(p)}</option>`).join("")}</select></label>
+  <label>Plateforme<select id="f-p"><option value="">Toutes</option>${[...new Set(Object.values(SERVICES).map(([n]) => n))].map((p) => `<option>${esc(p)}</option>`).join("")}</select></label>
   <label>Genre<select id="f-g"><option value="">Tous</option>${genrePages.map((g) => `<option value="${g.slug}">${esc(g.fr)}</option>`).join("")}</select></label>
   <label>Période<select id="f-y"><option value="">Toutes</option><option value="2020">2020 et après</option><option value="2010">2010 – 2019</option><option value="2000">2000 – 2009</option><option value="1990">1990 – 1999</option><option value="1980">Avant 1990</option></select></label>
   <label>Statut<select id="f-s"><option value="">Tous</option><option value="R">En cours de diffusion</option><option value="F">Terminé</option><option value="N">À venir</option></select></label>
@@ -496,8 +603,13 @@ for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
 const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
 const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
-const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: (m.coverImage?.medium || "").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
+const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: (m.coverImage?.medium || "").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map((l) => l.site), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
+{
+  const svc = {};
+  for (const [name, cls, regions] of Object.values(SERVICES)) svc[name] = [cls, regions];
+  await writeFile(new URL("world.js", OUT), `window.TZW=${JSON.stringify({ s: svc, r: REGIONS.map(([r, l]) => [r, l]) })};`);
+}
 const today = new Date().toISOString().slice(0, 10);
 await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter((p) => p.path !== "404.html").map((p) => `<url><loc>${esc(`${SITE}/${p.path}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
 await writeFile(new URL("manifest.webmanifest", OUT), JSON.stringify({ name: `${cfg.siteName} : où regarder tes animés`, short_name: cfg.siteName, start_url: BASE, scope: BASE, display: "standalone", background_color: "#0B0C16", theme_color: "#0B0C16", lang: "fr", icons: [{ src: `${BASE}icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }));
