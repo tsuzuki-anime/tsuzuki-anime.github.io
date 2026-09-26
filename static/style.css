@@ -240,3 +240,20 @@ h2.sec{margin-top:44px}
 .chip.p-other{color:var(--muted)}
 .h3{font-size:1rem;margin:18px 0 6px}
 .findl{display:flex;flex-wrap:wrap;gap:8px}
+.p-hu{--pc:#1CE783}.p-hd{--pc:#00AEEF}.p-mx{--pc:#7B5CFF}.p-yt{--pc:#FF3B3B}.p-bb{--pc:#23ADE5}.p-iq{--pc:#00CC4C}
+.chipset{display:contents}
+a.chip{text-decoration:none}
+a.chip:hover{border-color:var(--pc,var(--line))}
+.hreg{position:relative;display:flex;align-items:center;margin-left:6px}
+.hreg svg{position:absolute;left:10px;width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:1.8;pointer-events:none}
+.hreg select{appearance:none;-webkit-appearance:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px 9px 32px;max-width:190px;cursor:pointer}
+.hreg select:focus{outline:none;border-color:var(--sun)}
+@media (max-width:860px){.hreg select{width:40px;padding:9px 0 9px 32px;color:transparent}.hreg select option{color:var(--ink)}}
+.wtable{display:grid;gap:6px;margin-top:10px}
+.wrow{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid transparent}
+.wrow:nth-child(odd){background:var(--surface2)}
+.wrow.me{border-color:var(--sun);background:var(--surface2)}
+.wrow.me .wr::after{content:" · ta région";color:var(--sun);font-weight:700}
+.wr{font-weight:600;font-size:14px}
+.wl{display:flex;flex-wrap:wrap;gap:6px}
+@media (max-width:560px){.wrow{grid-template-columns:1fr}}

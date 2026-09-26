@@ -5,7 +5,59 @@
   function norm(s) { return (s || "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim(); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function chip(p) { return '<span class="chip p-' + pcl(p) + '"><i></i>' + esc(p) + "</span>"; }
-  function chips(x) { return x.p.length ? x.p.map(chip).join("") : x.f ? '<span class="chip muted">Franchise : ' + esc(x.f.join(", ")) + "</span>" : '<span class="chip muted">À chercher</span>'; }
+  // ---------- Région du visiteur ----------
+  var W = window.TZW || { s: {}, r: [] };
+  function detectRegion() {
+    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+    if (/^Asia\/Tokyo/.test(tz)) return "jp";
+    if (/^Asia\/(Shanghai|Chongqing|Urumqi|Harbin)/.test(tz)) return "cn";
+    if (/^Europe\/(London|Dublin)/.test(tz)) return "uk";
+    if (/^Europe\/(Berlin|Vienna)/.test(tz)) return "de";
+    if (/^Europe\/(Paris|Brussels|Luxembourg|Zurich|Monaco)|^Africa\/|^Indian\/(Reunion|Mayotte)|^America\/(Guadeloupe|Martinique|Cayenne)|^Pacific\/(Noumea|Tahiti)/.test(tz)) return "fr";
+    if (/^Europe\//.test(tz)) return "eu";
+    if (/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Toronto|Vancouver|Edmonton|Winnipeg|Halifax|St_Johns|Detroit|Indiana|Kentucky|Boise)|^Pacific\/Honolulu/.test(tz)) return "us";
+    if (/^America\/Montreal/.test(tz)) return "fr";
+    if (/^America\//.test(tz)) return "latam";
+    if (/^(Asia|Australia|Pacific)\//.test(tz)) return "asia";
+    return "fr";
+  }
+  var REGION = "fr";
+  try { REGION = localStorage.getItem("tz-region") || detectRegion(); } catch (e) { REGION = detectRegion(); }
+  function inRegion(name) { var d = W.s[name]; return !!d && d[1].indexOf(REGION) > -1; }
+  function regional(list) { return (list || []).filter(inRegion); }
+  function chipW(n) { var d = W.s[n]; return '<span class="chip p-' + (d ? d[0] : "other") + '"><i></i>' + esc(n) + "</span>"; }
+  function applyRegion() {
+    document.querySelectorAll("select[data-region]").forEach(function (s) { s.value = REGION; });
+    document.querySelectorAll(".chipset[data-w]").forEach(function (el) {
+      if (el._fr === undefined) el._fr = el.innerHTML;
+      if (REGION === "fr") { el.innerHTML = el._fr; return; }
+      var list = regional(el.dataset.w ? el.dataset.w.split("|") : []).slice(0, +el.dataset.max || 3);
+      el.innerHTML = list.length ? list.map(chipW).join("") : '<span class="chip muted">À chercher</span>';
+    });
+    var wt = document.querySelector(".wtable");
+    if (wt) {
+      wt.querySelectorAll(".wrow").forEach(function (r) { r.classList.toggle("me", r.dataset.region === REGION); });
+      var me = wt.querySelector('.wrow[data-region="' + REGION + '"]');
+      if (me) wt.insertBefore(me, wt.firstChild);
+      // Hors de France, la section « dans le monde » passe en premier
+      var world = wt.closest(".world"), frBox = world && world.parentNode.querySelector(".frbox");
+      if (world && frBox && frBox.parentNode === world.parentNode) {
+        if (REGION !== "fr") world.parentNode.insertBefore(world, frBox);
+        else if (world.compareDocumentPosition(frBox) & 2) world.parentNode.insertBefore(frBox, world);
+      }
+    }
+  }
+  document.querySelectorAll("select[data-region]").forEach(function (s) {
+    s.addEventListener("change", function () {
+      REGION = s.value;
+      try { localStorage.setItem("tz-region", REGION); } catch (e) {}
+      applyRegion();
+    });
+  });
+  applyRegion();
+  function chips(x) {
+    if (REGION !== "fr") { var l = regional(x.w).slice(0, 3); return l.length ? l.map(chipW).join("") : '<span class="chip muted">À chercher</span>'; }
+    return x.p.length ? x.p.map(chip).join("") : x.f ? '<span class="chip muted">Franchise : ' + esc(x.f.join(", ")) + "</span>" : '<span class="chip muted">À chercher</span>'; }
 
   var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
   // Index de recherche, chargé une seule fois et seulement quand on en a besoin
@@ -75,11 +127,11 @@
         var y0 = y ? +y : 0, y1 = y === "2020" ? 9999 : y === "1980" ? 1989 : y0 + 9;
         if (y === "1980") y0 = 0;
         last = idx.filter(function (x) {
-          if (p && x.p.indexOf(p) < 0) return false;
+          if (p && (x.w || []).indexOf(p) < 0 && x.p.indexOf(p) < 0) return false;
           if (g && (x.g || []).indexOf(g) < 0) return false;
           if (y && !(x.y >= y0 && x.y <= y1)) return false;
           if (s && x.s !== s) return false;
-          if (a && !x.p.length) return false;
+          if (a && !(REGION === "fr" ? x.p.length : regional(x.w).length)) return false;
           return true;
         });
         shown = 48; count.textContent = last.length.toLocaleString("fr-FR") + " animé" + (last.length > 1 ? "s" : "") + " trouvé" + (last.length > 1 ? "s" : "");
