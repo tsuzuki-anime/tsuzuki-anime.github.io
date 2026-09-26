@@ -25,7 +25,8 @@ const MEDIA_FIELDS = `
   id siteUrl format status episodes duration genres averageScore popularity isAdult
   season seasonYear countryOfOrigin
   title { romaji english native }
-  coverImage { color }
+  coverImage { large medium color }
+  bannerImage
   startDate { year month day }
   studios(isMain: true) { nodes { name } }
   nextAiringEpisode { airingAt episode }

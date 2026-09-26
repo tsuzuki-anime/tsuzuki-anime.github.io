@@ -86,42 +86,52 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script
 ${adsHead}
 </head>
 <body>
-<div class="wrap">
 <header class="top">
-  <a class="logo" href="${rel}index.html">${esc(cfg.siteName)}<span>.</span></a>
-  <nav aria-label="Menu principal">
-    <a href="${rel}calendrier.html">Calendrier</a>
-    <a href="${rel}catalogue.html">Tous les animés</a>
-    <a href="${rel}${seasonPath(data.current)}">Saison en cours</a>
-    <a href="${rel}${seasonPath(data.next)}">Prochaine saison</a>
-  </nav>
+  <div class="wrap top-in">
+    <a class="logo" href="${rel}index.html" aria-label="${esc(cfg.siteName)}, accueil"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
+    <nav aria-label="Menu principal">
+      <a href="${rel}calendrier.html">Calendrier</a>
+      <a href="${rel}catalogue.html">Catalogue</a>
+      <a href="${rel}${seasonPath(data.next)}">Saison ${esc(SEASON_FR[data.next.season])}</a>
+      <a class="nav-search" href="${rel}index.html#q" aria-label="Rechercher"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Rechercher</span></a>
+    </nav>
+  </div>
 </header>
-<main>
+<main class="wrap">
 ${body}
 </main>
 <footer class="foot">
-  <p>${esc(cfg.siteName)} ne diffuse aucune vidéo : le site renvoie uniquement vers les plateformes officielles. Certains liens peuvent être affiliés.</p>
-  <p>Données : <a href="https://anilist.co" rel="noopener">AniList</a>. Site non affilié à AniList. Horaires à l'heure belge, mis à jour chaque jour. <a href="${rel}a-propos.html">À propos</a></p>
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <a class="logo" href="${rel}index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
+      <p>Le guide gratuit pour savoir où regarder tes animés légalement en Belgique. Nous ne diffusons aucune vidéo : nous renvoyons uniquement vers les plateformes officielles.</p>
+    </div>
+    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
+    <div><h3>Informations</h3><a href="${rel}a-propos.html">À propos</a><a href="${rel}mentions-legales.html">Mentions légales</a><a href="${rel}confidentialite.html">Confidentialité</a></div>
+  </div>
+  <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure belge, mis à jour chaque jour · Certains liens peuvent être affiliés.</div>
 </footer>
-</div>
 <script src="${rel}app.js" defer></script>
 </body>
 </html>`;
 }
 
+const PCLASS = { "Crunchyroll": "cr", "Netflix": "nf", "ADN": "adn", "Prime Video": "pv", "Disney+": "dp" };
 function chips(m, max = 4) {
   const links = streaming(m).slice(0, max);
-  if (!links.length) return `<span class="chip muted">Plateforme à confirmer</span>`;
-  return links.map((l) => `<span class="chip">${esc(l.site)}</span>`).join("");
+  if (!links.length) return `<span class="chip muted">À confirmer</span>`;
+  return links.map((l) => `<span class="chip p-${PCLASS[l.site]}"><i></i>${esc(l.site)}</span>`).join("");
 }
-
+const cover = (m, size = "large") => m.coverImage?.[size] || m.coverImage?.large || m.coverImage?.medium || "";
+function poster(m, size = "large", eager = false) {
+  const src = cover(m, size);
+  return `<span class="poster" style="--c:${esc(m.coverImage?.color || "#2A2D4A")}">${src ? `<img src="${esc(src)}" alt="" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">` : `<b>${esc(nameOf(m).slice(0, 1))}</b>`}</span>`;
+}
+const metaLine = (m) => [FORMAT_FR[m.format] || m.format, m.seasonYear].filter(Boolean).join(" · ");
 function card(m, rel) {
-  const color = m.coverImage?.color || "#2D3052";
-  const genres = (m.genres || []).slice(0, 2).map((g) => GENRE_FR[g] || g).join(" · ");
-  return `<a class="card" href="${rel}anime/${m.slug}.html" style="--c:${esc(color)}">
-  <span class="swatch" aria-hidden="true">${esc(nameOf(m).slice(0, 1))}</span>
-  <span class="ct"><b>${esc(nameOf(m))}</b><small>${esc(FORMAT_FR[m.format] || m.format || "")}${genres ? " · " + esc(genres) : ""}</small></span>
-  <span class="chips">${chips(m, 2)}</span>
+  return `<a class="pcard" href="${rel}anime/${m.slug}.html">
+  ${poster(m)}
+  <span class="pc-b"><b>${esc(nameOf(m))}</b><small>${esc(metaLine(m))}</small><span class="chips">${chips(m, 2)}</span></span>
 </a>`;
 }
 
@@ -166,26 +176,38 @@ function animePage(m) {
     .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
     .slice(0, 6);
 
+  const banner = m.bannerImage || cover(m);
   const body = `
-<article class="fiche" style="--c:${esc(m.coverImage?.color || "#7C95FF")}">
-  <p class="crumb"><a href="${rel}index.html">Accueil</a> › Animés › ${esc(name)}</p>
-  <h1>Où regarder ${esc(name)}&nbsp;?</h1>
-  ${alt.length ? `<p class="alt">${esc(alt.join(" · "))}</p>` : ""}
-  <div class="facts">
-    <span class="chip">${esc(FORMAT_FR[m.format] || m.format || "Animé")}</span>
-    ${m.status ? `<span class="chip">${esc(STATUS_FR[m.status] || m.status)}</span>` : ""}
-    ${m.averageScore ? `<span class="chip">Note ${m.averageScore}/100</span>` : ""}
-    ${studio ? `<span class="chip">${esc(studio)}</span>` : ""}
+<article class="fiche">
+  <div class="fhero" style="--c:${esc(m.coverImage?.color || "#2A2D4A")}">
+    ${banner ? `<div class="fhero-bg" style="background-image:url('${esc(banner)}')" aria-hidden="true"></div>` : ""}
+    <div class="fhero-in">
+      ${poster(m, "large", true)}
+      <div class="fhero-txt">
+        <p class="crumb"><a href="${rel}index.html">Accueil</a> <span>›</span> <a href="${rel}catalogue.html">Animés</a> <span>›</span> ${esc(name)}</p>
+        <h1>Où regarder ${esc(name)}&nbsp;?</h1>
+        ${alt.length ? `<p class="alt">${esc(alt.join(" · "))}</p>` : ""}
+        <div class="facts">
+          <span class="fact">${esc(FORMAT_FR[m.format] || m.format || "Animé")}</span>
+          ${m.status ? `<span class="fact">${esc(STATUS_FR[m.status] || m.status)}</span>` : ""}
+          ${m.episodes ? `<span class="fact">${m.episodes} épisode${m.episodes > 1 ? "s" : ""}</span>` : ""}
+          ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1).replace(".", ",")}/10</span>` : ""}
+          ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
+        </div>
+        ${links.length ? `<div class="ctas">${links.map((l) => `<a class="cta p-${PCLASS[l.site]}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>Regarder sur ${esc(l.site)}</a>`).join("")}</div>` : `<p class="nolink">Aucune plateforme légale annoncée en Belgique pour l'instant.</p>`}
+      </div>
+    </div>
   </div>
-  ${nextHtml}
-  <h2>Plateformes légales</h2>
-  ${where}
-  ${adSlot()}
-  <h2>À propos</h2>
-  <p>${intro}</p>
-  <h2>Questions fréquentes</h2>
-  <dl class="faq">${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl>
-  ${similar.length ? `<h2>Dans le même genre</h2><div class="grid">${similar.map((o) => card(o, rel)).join("")}</div>` : ""}
+  <div class="fbody">
+    <div class="fmain">
+      ${nextHtml}
+      <section class="box"><h2>Plateformes légales</h2>${where}</section>
+      ${adSlot()}
+      <section class="box"><h2>À propos</h2><p>${intro}</p>${genres.length ? `<div class="tags">${genres.map((g) => `<span>${esc(g)}</span>`).join("")}</div>` : ""}</section>
+      <section class="box"><h2>Questions fréquentes</h2><dl class="faq">${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl></section>
+    </div>
+  </div>
+  ${similar.length ? `<section><h2 class="sec">Dans le même genre</h2><div class="pgrid">${similar.map((o) => card(o, rel)).join("")}</div></section>` : ""}
 </article>`;
 
   pages.push({
@@ -212,15 +234,15 @@ for (const s of data.schedule) {
 const todayKey = dayKey(Math.floor(Date.now() / 1000));
 const dayList = [...byDay.entries()].filter(([k]) => k >= todayKey).sort(([a], [b]) => a.localeCompare(b)).slice(0, 8);
 function epRow(e, rel) {
-  return `<a class="ep" href="${rel}anime/${e.m.slug}.html"><time>${hhmm(e.airingAt)}</time><span><b>${esc(nameOf(e.m))}</b><small>Épisode ${e.episode}${e.m.episodes ? ` / ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 1)}</span></a>`;
+  return `<a class="ep" href="${rel}anime/${e.m.slug}.html"><time>${hhmm(e.airingAt)}</time>${poster(e.m, "medium")}<span class="ep-t"><b>${esc(nameOf(e.m))}</b><small>Épisode ${e.episode}${e.m.episodes ? ` sur ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 2)}</span></a>`;
 }
 {
   const rel = "";
   const body = `
-<h1>Calendrier des sorties animés</h1>
-<p class="lead">Les nouveaux épisodes de la semaine à l'heure belge, avec la plateforme légale pour les regarder. Mis à jour chaque jour.</p>
+<div class="phead"><p class="eyebrow">Calendrier</p><h1>Les sorties animés de la semaine</h1>
+<p class="lead">Les nouveaux épisodes de la semaine à l'heure belge, avec la plateforme légale pour les regarder. Mis à jour chaque jour.</p></div>
 <div class="days" role="tablist" aria-label="Jour">${dayList.map(([k, d], i) => `<button class="day" type="button" role="tab" data-day="${k}" aria-selected="${i === 0}">${esc(d.label)}</button>`).join("")}</div>
-${dayList.map(([k, d], i) => `<section class="dayp" data-day="${k}" ${i === 0 ? "" : "hidden"}><h2>${esc(d.label[0].toUpperCase() + d.label.slice(1))}</h2>${d.items.map((e) => epRow(e, rel)).join("")}</section>`).join("")}
+${dayList.map(([k, d], i) => `<section class="dayp" data-day="${k}" ${i === 0 ? "" : "hidden"}><h2 class="sec">${esc(d.label[0].toUpperCase() + d.label.slice(1))}</h2><div class="eps">${d.items.map((e) => epRow(e, rel)).join("")}</div></section>`).join("")}
 ${adSlot()}`;
   pages.push({ path: "calendrier.html", html: page({ path: "calendrier.html", rel, title: "Calendrier des sorties animés de la semaine (heure belge)", desc: "Tous les nouveaux épisodes d'animés de la semaine, jour par jour, à l'heure belge, avec les plateformes légales pour les regarder.", body }) });
 }
@@ -231,9 +253,9 @@ for (const s of [data.current, data.next]) {
   const list = data.media.filter((m) => m.tags?.includes(`${s.season}-${s.year}`)).sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
   const lab = seasonLabel(s);
   const body = `
-<h1>Les animés ${s.season === "SPRING" ? "du " : "de l'"}${esc(lab)}</h1>
-<p class="lead">${list.length} animés de la saison ${esc(lab)}, classés par popularité, avec les plateformes légales où les regarder en Belgique.</p>
-<div class="grid">${list.map((m) => card(m, rel)).join("")}</div>
+<div class="phead"><p class="eyebrow">Saison ${esc(lab)}</p><h1>Les animés ${s.season === "SPRING" ? "du " : "de l'"}${esc(lab)}</h1>
+<p class="lead">${list.length} animés de la saison, classés par popularité, avec les plateformes légales où les regarder en Belgique.</p></div>
+<div class="pgrid">${list.map((m) => card(m, rel)).join("")}</div>
 ${adSlot()}`;
   pages.push({ path: seasonPath(s), html: page({ path: seasonPath(s), rel, title: `Animés ${lab} : la liste complète et où les regarder`, desc: `Tous les animés de la saison ${lab}, classés par popularité, avec les plateformes légales pour les regarder en Belgique.`, body }) });
 }
@@ -252,14 +274,14 @@ ${adSlot()}`;
   }
   const letters = [...groups.keys()].sort((a, b) => (a === "0-9" ? -1 : b === "0-9" ? 1 : a.localeCompare(b)));
   const letterNav = (rel, current) => `<nav class="letters" aria-label="Lettres">${letters.map((l) => `<a href="${rel}catalogue/${l}.html"${l === current ? ' aria-current="page"' : ""}>${l.toUpperCase()}</a>`).join("")}</nav>`;
-  const row = (m, rel) => `<a class="row" href="${rel}anime/${m.slug}.html"><span><b>${esc(nameOf(m))}</b><small>${esc(FORMAT_FR[m.format] || m.format || "")}${m.seasonYear ? " · " + m.seasonYear : ""}${m.title.romaji && m.title.romaji !== nameOf(m) ? " · " + esc(m.title.romaji) : ""}</small></span><span class="chips">${chips(m, 3)}</span></a>`;
+  const row = (m, rel) => `<a class="row" href="${rel}anime/${m.slug}.html">${poster(m, "medium")}<span class="row-t"><b>${esc(nameOf(m))}</b><small>${esc(FORMAT_FR[m.format] || m.format || "")}${m.seasonYear ? " · " + m.seasonYear : ""}${m.title.romaji && m.title.romaji !== nameOf(m) ? " · " + esc(m.title.romaji) : ""}</small></span><span class="chips">${chips(m, 3)}</span></a>`;
   for (const l of letters) {
     const rel = "../";
     const list = groups.get(l).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr"));
     const L = l.toUpperCase();
     const body = `
-<h1>Tous les animés : ${L}</h1>
-<p class="lead">${list.length} animés commençant par ${L}, avec les plateformes légales où les regarder en Belgique.</p>
+<div class="phead"><p class="eyebrow">Catalogue</p><h1>Animés commençant par ${L}</h1>
+<p class="lead">${list.length} animés, avec les plateformes légales où les regarder en Belgique.</p></div>
 ${letterNav(rel, l)}
 <div class="rows">${list.map((m) => row(m, rel)).join("")}</div>
 ${adSlot()}`;
@@ -268,11 +290,11 @@ ${adSlot()}`;
   const rel = "";
   const top = [...data.media].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 100);
   const body = `
-<h1>Tous les animés et où les regarder</h1>
-<p class="lead">${data.media.length} animés, des classiques aux sorties de la saison, avec les plateformes légales disponibles en Belgique. Choisis une lettre ou parcours les 100 plus populaires.</p>
+<div class="phead"><p class="eyebrow">Catalogue</p><h1>Tous les animés et où les regarder</h1>
+<p class="lead">${data.media.length.toLocaleString("fr-BE")} animés, des grands classiques aux sorties de la saison, avec les plateformes légales disponibles en Belgique.</p></div>
 ${letterNav(rel, null)}
-<h2>Les 100 animés les plus populaires</h2>
-<div class="rows">${top.map((m) => row(m, rel)).join("")}</div>
+<h2 class="sec">Les 100 animés les plus populaires</h2>
+<div class="pgrid">${top.map((m) => card(m, rel)).join("")}</div>
 ${adSlot()}`;
   pages.push({ path: "catalogue.html", html: page({ path: "catalogue.html", rel, title: "Tous les animés de A à Z et où les regarder légalement en Belgique", desc: "Le catalogue complet des animés, des classiques aux nouveautés, avec les plateformes légales pour les regarder en Belgique.", body }) });
 }
@@ -283,28 +305,49 @@ ${adSlot()}`;
   const popular = data.media.filter((m) => m.tags?.includes(`${data.current.season}-${data.current.year}`) || m.status === "RELEASING").sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 12);
   const firstDay = dayList[0];
   const moods = [["Action", "action"], ["Comedy", "rire"], ["Romance", "romance"], ["Drama", "émotion"], ["Horror", "frisson"], ["Fantasy", "évasion"]];
-  const pickData = moods.map(([g, label]) => ({ label, items: data.media.filter((m) => (m.genres || []).includes(g) && streaming(m).length).sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 12).map((m) => ({ t: nameOf(m), u: `anime/${m.slug}.html`, p: streaming(m).map((l) => l.site).slice(0, 3).join(", ") })) })).filter((x) => x.items.length);
+  const pickData = moods.map(([g, label]) => ({ label, items: data.media.filter((m) => (m.genres || []).includes(g) && streaming(m).length).sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 12).map((m) => ({ t: nameOf(m), u: `anime/${m.slug}.html`, i: cover(m), p: streaming(m).map((l) => l.site).slice(0, 3).join(", ") })) })).filter((x) => x.items.length);
+  const heroBg = popular.slice(0, 6).map((m) => cover(m)).filter(Boolean);
+  const nPlat = data.media.filter((m) => streaming(m).length).length;
   const body = `
 <section class="hero">
-  <h1>Tu veux le voir&nbsp;? On te dit <em>où</em>.</h1>
-  <p class="lead">Trouve sur quelle plateforme légale regarder un animé en Belgique, et quand sort le prochain épisode.</p>
-  <div class="search">
-    <input id="q" type="search" placeholder="Un titre d'animé…" autocomplete="off" aria-label="Rechercher un animé">
+  <div class="hero-bg" aria-hidden="true">${heroBg.map((u) => `<img src="${esc(u)}" alt="">`).join("")}</div>
+  <div class="hero-in">
+    <p class="eyebrow">Le guide des animés en Belgique</p>
+    <h1>Tu veux le voir&nbsp;? On te dit <em>où</em>.</h1>
+    <p class="lead">Trouve en un instant sur quelle plateforme légale regarder un animé, et quand sort le prochain épisode.</p>
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Rechercher un animé : One Piece, Frieren, Naruto…" autocomplete="off" aria-label="Rechercher un animé">
+    </div>
+    <div class="results" id="results" aria-live="polite"></div>
+    <ul class="stats"><li><b>${data.media.length.toLocaleString("fr-BE")}</b> animés</li><li><b>${nPlat.toLocaleString("fr-BE")}</b> avec une plateforme en Belgique</li><li><b>Chaque jour</b> mis à jour</li></ul>
   </div>
-  <div class="results" id="results" aria-live="polite"></div>
 </section>
-${firstDay ? `<section><h2>Les sorties du jour</h2><p class="sub">${esc(firstDay[1].label)}, à l'heure belge. <a href="calendrier.html">Toute la semaine →</a></p>${firstDay[1].items.slice(0, 8).map((e) => epRow(e, rel)).join("")}</section>` : ""}
+${firstDay ? `<section><div class="sec-h"><h2 class="sec">Les sorties du jour</h2><a href="calendrier.html">Toute la semaine →</a></div><p class="sub">${esc(firstDay[1].label[0].toUpperCase() + firstDay[1].label.slice(1))}, à l'heure belge.</p><div class="eps">${firstDay[1].items.slice(0, 8).map((e) => epRow(e, rel)).join("")}</div></section>` : ""}
 ${adSlot()}
-<section><h2>Populaires en ce moment</h2><p class="sub">Tu cherches un classique ? <a href="catalogue.html">Voir tous les animés de A à Z →</a></p><div class="grid">${popular.map((m) => card(m, rel)).join("")}</div></section>
-<section><h2>Qu'est-ce qu'on regarde ce soir ?</h2><p class="sub">Choisis ton humeur, on te trouve un animé.</p>
+<section><div class="sec-h"><h2 class="sec">Populaires en ce moment</h2><a href="catalogue.html">Tout le catalogue →</a></div><div class="pgrid">${popular.map((m) => card(m, rel)).join("")}</div></section>
+<section class="tonight"><h2 class="sec">Qu'est-ce qu'on regarde ce soir&nbsp;?</h2><p class="sub">Choisis ton humeur, on te trouve un animé.</p>
 <div class="moods" id="moods" role="group" aria-label="Humeur"></div><div class="pick" id="pick"></div>
 <script type="application/json" id="pickdata">${JSON.stringify(pickData).replace(/</g, "\\u003c")}</script></section>`;
   pages.push({ path: "index.html", html: page({ path: "index.html", rel, title: `${cfg.siteName} : où regarder tes animés légalement en Belgique`, desc: "Trouve sur quelle plateforme légale regarder un animé en Belgique, le calendrier des sorties à l'heure belge et des idées pour ce soir.", body, jsonld: { "@context": "https://schema.org", "@type": "WebSite", name: cfg.siteName, url: SITE + "/" } }) });
 }
 
 // ---------- À propos & 404 ----------
-pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "", title: `À propos de ${cfg.siteName}`, desc: `${cfg.siteName} aide à trouver où regarder légalement ses animés en Belgique.`, body: `<h1>À propos</h1><div class="prose"><p>${esc(cfg.siteName)} aide les fans d'animés en Belgique à trouver où regarder leurs séries légalement, et à savoir quand sortent les nouveaux épisodes.</p><p>Le site ne diffuse et n'héberge aucune vidéo. Il renvoie uniquement vers les plateformes officielles. Certains liens peuvent être affiliés : si vous vous abonnez via ces liens, le site peut toucher une commission, sans surcoût pour vous.</p><p>Les informations proviennent d'AniList et sont mises à jour automatiquement chaque jour. La disponibilité d'un titre peut varier selon le pays : vérifiez toujours sur la plateforme.</p></div>` }) });
-pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: "Page introuvable", desc: "Cette page n'existe pas.", body: `<h1>Page introuvable</h1><p class="lead">Cette page n'existe pas ou plus. <a href="${BASE}index.html">Retour à l'accueil</a></p>` }) });
+const prosePage = (path, title, desc, h1, html) => pages.push({ path, html: page({ path, rel: "", title, desc, body: `<div class="phead"><h1>${h1}</h1></div><div class="prose">${html}</div>` }) });
+prosePage("mentions-legales.html", `Mentions légales | ${cfg.siteName}`, `Mentions légales du site ${cfg.siteName}.`, "Mentions légales", `
+<h2>Éditeur</h2><p>${esc(cfg.siteName)} est un projet indépendant, sans lien avec les plateformes de streaming citées ni avec les ayants droit des œuvres présentées.</p>
+<h2>Hébergement</h2><p>Le site est hébergé par GitHub Pages, un service de GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.</p>
+<h2>Contenus</h2><p>${esc(cfg.siteName)} ne diffuse et n'héberge aucune vidéo. Les titres, informations et visuels (affiches, bannières) proviennent de la base de données AniList et restent la propriété de leurs ayants droit respectifs. Ils sont utilisés uniquement pour identifier les œuvres et orienter vers leur diffusion légale.</p>
+<p>Si vous êtes ayant droit et souhaitez le retrait d'un visuel ou d'une information, signalez-le via la page GitHub du projet : la demande sera traitée rapidement.</p>
+<h2>Liens affiliés</h2><p>Certains liens vers des plateformes peuvent être affiliés. Si vous vous abonnez via ces liens, le site peut percevoir une commission, sans aucun surcoût pour vous.</p>
+<h2>Exactitude</h2><p>Les disponibilités et horaires sont mis à jour automatiquement chaque jour mais peuvent changer sans préavis. Vérifiez toujours sur la plateforme concernée.</p>`);
+prosePage("confidentialite.html", `Politique de confidentialité | ${cfg.siteName}`, `Politique de confidentialité du site ${cfg.siteName}.`, "Politique de confidentialité", `
+<p>${esc(cfg.siteName)} ne demande aucune inscription et ne collecte directement aucune donnée personnelle.</p>
+<h2>Services tiers</h2><p>Pour afficher le site, votre navigateur contacte des services tiers : Google Fonts (polices d'écriture) et AniList (affiches des animés). Ces services peuvent recevoir votre adresse IP, comme pour toute visite d'un site web.</p>
+${cfg.adsenseClient ? `<h2>Publicité</h2><p>Le site affiche des annonces Google AdSense. Google peut utiliser des cookies pour diffuser des annonces adaptées. Vous pouvez gérer vos préférences sur la page « Paramètres des annonces » de Google.</p>` : ""}
+<h2>Vos droits</h2><p>Conformément au RGPD, vous pouvez exercer vos droits auprès des services tiers concernés. Pour toute question, utilisez la page GitHub du projet.</p>`);
+pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "", title: `À propos de ${cfg.siteName}`, desc: `${cfg.siteName} aide à trouver où regarder légalement ses animés en Belgique.`, body: `<div class="phead"><h1>À propos</h1></div><div class="prose"><p>${esc(cfg.siteName)} aide les fans d'animés en Belgique à trouver où regarder leurs séries légalement, et à savoir quand sortent les nouveaux épisodes.</p><p>Le site ne diffuse et n'héberge aucune vidéo. Il renvoie uniquement vers les plateformes officielles. Certains liens peuvent être affiliés : si vous vous abonnez via ces liens, le site peut toucher une commission, sans surcoût pour vous.</p><p>Les informations proviennent d'AniList et sont mises à jour automatiquement chaque jour. La disponibilité d'un titre peut varier selon le pays : vérifiez toujours sur la plateforme.</p></div>` }) });
+pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: "Page introuvable", desc: "Cette page n'existe pas.", body: `<div class="phead"><h1>Page introuvable</h1></div><p class="lead">Cette page n'existe pas ou plus. <a href="${BASE}index.html">Retour à l'accueil</a></p>` }) });
 
 // ---------- Écriture ----------
 await rm(OUT, { recursive: true, force: true });
@@ -313,7 +356,7 @@ await mkdir(new URL("saison/", OUT), { recursive: true });
 await mkdir(new URL("catalogue/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
-const search = data.media.map((m) => ({ t: nameOf(m), a: [m.title.romaji, m.title.native].filter(Boolean).join(" "), u: `anime/${m.slug}.html`, p: streaming(m).map((l) => l.site).slice(0, 3) }));
+const search = data.media.map((m) => ({ t: nameOf(m), a: [m.title.romaji, m.title.native].filter(Boolean).join(" "), u: `anime/${m.slug}.html`, i: m.coverImage?.medium || "", y: m.seasonYear || "", p: streaming(m).map((l) => l.site).slice(0, 3) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 const today = new Date().toISOString().slice(0, 10);
 await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter((p) => p.path !== "404.html").map((p) => `<url><loc>${esc(`${SITE}/${p.path}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
