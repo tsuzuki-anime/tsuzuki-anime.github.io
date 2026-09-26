@@ -35,8 +35,25 @@ for (const m of data.media) {
   m.slug = s;
 }
 const byId = new Map(data.media.map((m) => [m.id, m]));
-const streaming = (m) => (m.externalLinks || []).filter((l) => l.type === "STREAMING");
-const affiliate = (site) => cfg.affiliates?.[site] || "";
+// Plateformes disponibles en Belgique (les données AniList sont mondiales)
+const BE_PLATFORMS = {
+  "Crunchyroll": "Crunchyroll",
+  "Netflix": "Netflix",
+  "ADN": "ADN",
+  "Animation Digital Network": "ADN",
+  "Amazon Prime Video": "Prime Video",
+  "Prime Video": "Prime Video",
+  "Disney Plus": "Disney+",
+  "Disney+": "Disney+",
+};
+const streaming = (m) => {
+  const seen = new Set();
+  return (m.externalLinks || [])
+    .filter((l) => l.type === "STREAMING" && BE_PLATFORMS[l.site])
+    .map((l) => ({ ...l, raw: l.site, site: BE_PLATFORMS[l.site] }))
+    .filter((l) => !seen.has(l.site) && seen.add(l.site));
+};
+const affiliate = (site) => cfg.affiliates?.[site] || Object.entries(BE_PLATFORMS).filter(([, v]) => v === site).map(([k]) => cfg.affiliates?.[k]).find(Boolean) || "";
 
 // ---------- Mise en page commune ----------
 const adsHead = cfg.adsenseClient
@@ -191,7 +208,8 @@ for (const s of data.schedule) {
   if (!byDay.has(k)) byDay.set(k, { label: longDate(s.airingAt), w: weekdayIdx(s.airingAt), items: [] });
   byDay.get(k).items.push({ ...s, m });
 }
-const dayList = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 8);
+const todayKey = dayKey(Math.floor(Date.now() / 1000));
+const dayList = [...byDay.entries()].filter(([k]) => k >= todayKey).sort(([a], [b]) => a.localeCompare(b)).slice(0, 8);
 function epRow(e, rel) {
   return `<a class="ep" href="${rel}anime/${e.m.slug}.html"><time>${hhmm(e.airingAt)}</time><span><b>${esc(nameOf(e.m))}</b><small>Épisode ${e.episode}${e.m.episodes ? ` / ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 1)}</span></a>`;
 }
