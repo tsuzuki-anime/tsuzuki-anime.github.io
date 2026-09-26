@@ -85,17 +85,21 @@ for (const s of [cur, nxt]) {
   console.log(`Saison ${s.season} ${s.year} : ${list.length} animés`);
 }
 
-// Catalogue complet : les animés les plus populaires de tous les temps (pas seulement les sorties récentes)
-const CATALOG_PAGES = 60; // 60 x 50 = 3 000 animés
-const CATALOG_Q = `query ($page: Int) {
+// Catalogue complet : les animés les plus populaires de chaque année (classiques compris)
+const YEAR_Q = `query ($year: Int, $page: Int) {
   Page(page: $page, perPage: 50) {
     pageInfo { hasNextPage }
-    media(type: ANIME, isAdult: false, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
+    media(type: ANIME, isAdult: false, seasonYear: $year, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
   }
 }`;
-const catalog = await allPages(CATALOG_Q, {}, (p) => p.media, CATALOG_PAGES);
-catalog.forEach((m) => add(m, "catalog"));
-console.log(`Catalogue : ${catalog.length} animés`);
+let catalogCount = 0;
+for (let year = now.getUTCFullYear(); year >= 1980; year--) {
+  const pagesForYear = year >= 2000 ? 2 : 1; // 100 animés par an depuis 2000, 50 avant
+  const list = await allPages(YEAR_Q, { year }, (p) => p.media, pagesForYear);
+  list.forEach((m) => add(m, "catalog"));
+  catalogCount += list.length;
+}
+console.log(`Catalogue : ${catalogCount} animés`);
 
 const from = Math.floor(now.getTime() / 1000) - 86400;
 const to = from + 9 * 86400;
