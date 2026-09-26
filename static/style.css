@@ -102,6 +102,10 @@ h2.sec{margin-top:44px}
 .letters{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
 .letters a{min-width:40px;text-align:center;font-weight:700;padding:8px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line);color:var(--ink);text-decoration:none}
 .letters a:hover,.letters a[aria-current="page"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
+.pager{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;align-items:center}
+.pager a,.pager span{min-width:36px;text-align:center;padding:6px 10px;border-radius:10px;border:1px solid var(--line);font-weight:600;font-size:.92rem;text-decoration:none;color:var(--ink);background:var(--surface)}
+.pager span[aria-current]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
+.pager a:hover{border-color:var(--sun)}
 .rows{display:grid;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:16px}
 .row{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:14px;padding:9px 16px;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}
 .row:last-child{border-bottom:0}

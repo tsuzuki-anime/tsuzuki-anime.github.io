@@ -1,15 +1,17 @@
 (function () {
   var PC = { "Crunchyroll": "cr", "Netflix": "nf", "ADN": "adn", "Prime Video": "pv", "Disney+": "dp" };
-  function norm(s) { return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
+  // Normalisation valable pour toutes les écritures (latin, japonais, chinois, coréen…)
+  function norm(s) { return (s || "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim(); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function chip(p) { return '<span class="chip p-' + (PC[p] || "") + '"><i></i>' + esc(p) + "</span>"; }
   function chips(x) { return x.p.length ? x.p.map(chip).join("") : '<span class="chip muted">À confirmer</span>'; }
 
+  var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
   // Index de recherche, chargé une seule fois et seulement quand on en a besoin
   var idxPromise = null;
   function loadIdx(rel) {
     if (!idxPromise) idxPromise = fetch(rel + "search.json").then(function (r) { return r.json(); }).then(function (d) {
-      d.forEach(function (x) { x._n = norm(x.t); x._a = norm(x.a); });
+      d.forEach(function (x) { x._n = norm(x.t); x._a = norm(x.a); if (x.i && x.i.indexOf("http") !== 0) x.i = IMG + x.i; });
       return d;
     });
     return idxPromise;
@@ -30,7 +32,7 @@
     return list.length ? list.map(function (x) {
       return '<a class="res" href="' + rel + x.u + '">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy">' : '<span class="ph"></span>') +
         "<span><b>" + esc(x.t) + "</b>" + (x.y ? "<small>" + esc(x.y) + "</small>" : "") + '</span><span class="chips">' + chips(x) + "</span></a>";
-    }).join("") : '<p class="empty">Aucun animé trouvé. Essaie avec le titre japonais, anglais ou français.</p>';
+    }).join("") : '<p class="empty">Aucun animé trouvé. Essaie avec un autre titre : français, anglais, romaji, japonais ou chinois.</p>';
   }
   function bindSearch(input, out, rel, max) {
     var run = function () {
