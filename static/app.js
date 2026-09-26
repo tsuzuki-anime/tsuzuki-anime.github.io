@@ -68,3 +68,15 @@
     if (moods.length) draw();
   }
 })();
+// Heures converties dans le fuseau horaire du visiteur (Canada, Afrique, etc.)
+(function () {
+  var tz; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return; }
+  var f = function (z) { return new Intl.DateTimeFormat("fr-FR", { timeZone: z, hour: "2-digit", minute: "2-digit" }); };
+  var paris = f("Europe/Paris"), local = f(tz), now = new Date();
+  if (paris.format(now) === local.format(now)) return;
+  document.querySelectorAll("time[data-t]").forEach(function (t) {
+    var d = new Date(+t.dataset.t * 1000);
+    t.textContent = local.format(d);
+    t.title = "Heure locale (" + paris.format(d) + " à Paris)";
+  });
+})();
