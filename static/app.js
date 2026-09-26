@@ -1,10 +1,11 @@
 (function () {
   var PC = { "Crunchyroll": "cr", "Netflix": "nf", "ADN": "adn", "Prime Video": "pv", "Disney+": "dp" };
+  function pcl(p) { return PC[p] || "other"; }
   // Normalisation valable pour toutes les écritures (latin, japonais, chinois, coréen…)
   function norm(s) { return (s || "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim(); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function chip(p) { return '<span class="chip p-' + (PC[p] || "") + '"><i></i>' + esc(p) + "</span>"; }
-  function chips(x) { return x.p.length ? x.p.map(chip).join("") : '<span class="chip muted">À confirmer</span>'; }
+  function chip(p) { return '<span class="chip p-' + pcl(p) + '"><i></i>' + esc(p) + "</span>"; }
+  function chips(x) { return x.p.length ? x.p.map(chip).join("") : '<span class="chip muted">À chercher</span>'; }
 
   var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
   // Index de recherche, chargé une seule fois et seulement quand on en a besoin

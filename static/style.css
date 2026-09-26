@@ -235,3 +235,8 @@ h2.sec{margin-top:44px}
 #f-out{margin-bottom:30px}
 .more{display:block;margin:24px auto 0}
 [hidden]{display:none!important}
+
+.p-other{--pc:#9AA0B8}
+.chip.p-other{color:var(--muted)}
+.h3{font-size:1rem;margin:18px 0 6px}
+.findl{display:flex;flex-wrap:wrap;gap:8px}
