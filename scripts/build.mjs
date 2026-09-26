@@ -53,6 +53,12 @@ const streaming = (m) => {
     .map((l) => ({ ...l, raw: l.site, site: BE_PLATFORMS[l.site] }))
     .filter((l) => !seen.has(l.site) && seen.add(l.site));
 };
+const PLATFORM_SLUG = { "Crunchyroll": "crunchyroll", "Netflix": "netflix", "ADN": "adn", "Prime Video": "prime-video", "Disney+": "disney-plus" };
+const GENRE_PAGES = Object.entries(GENRE_FR).filter(([g]) => g !== "Ecchi").map(([g, fr]) => ({ g, fr, slug: slugify(fr) }));
+const genreSlug = Object.fromEntries(GENRE_PAGES.map((x) => [x.g, x.slug]));
+const LATIN = /^[\p{Script=Latin}\p{N}\p{P}\p{Zs}\p{S}]+$/u;
+const altTitles = (m) => [...new Set([m.title.romaji, m.title.english, ...(m.synonyms || [])].filter((t) => t && t !== nameOf(m) && LATIN.test(t)))].slice(0, 6);
+const trailerUrl = (m) => (m.trailer?.site === "youtube" && m.trailer.id ? `https://www.youtube.com/watch?v=${encodeURIComponent(m.trailer.id)}` : "");
 const affiliate = (site) => cfg.affiliates?.[site] || Object.entries(BE_PLATFORMS).filter(([, v]) => v === site).map(([k]) => cfg.affiliates?.[k]).find(Boolean) || "";
 
 // ---------- Mise en page commune ----------
@@ -63,7 +69,7 @@ const adSlot = () => (cfg.adsenseClient
   ? `<div class="ad"><ins class="adsbygoogle" style="display:block" data-ad-client="${esc(cfg.adsenseClient)}" data-ad-format="auto" data-full-width-responsive="true"></ins><script>(adsbygoogle=window.adsbygoogle||[]).push({});</script></div>`
   : "");
 
-function page({ path, title, desc, body, rel, jsonld }) {
+function page({ path, title, desc, body, rel, jsonld, image }) {
   const canonical = `${SITE}/${path}`.replace(/index\.html$/, "");
   return `<!doctype html>
 <html lang="fr">
@@ -79,6 +85,11 @@ function page({ path, title, desc, body, rel, jsonld }) {
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fr_FR">
 <meta property="og:url" content="${esc(canonical)}">
+<meta property="og:site_name" content="${esc(cfg.siteName)}">
+${image ? `<meta property="og:image" content="${esc(image)}">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:image" content="${esc(image)}">` : `<meta name="twitter:card" content="summary">`}
+<meta name="theme-color" content="#0B0C16">
+<link rel="manifest" href="${rel}manifest.webmanifest">
+<link rel="apple-touch-icon" href="${rel}icon-192.png">
 <link rel="icon" href="${rel}favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -94,8 +105,8 @@ ${adsHead}
     <nav aria-label="Menu principal">
       <a href="${rel}calendrier.html">Calendrier</a>
       <a href="${rel}catalogue.html">Catalogue</a>
-      <a href="${rel}${seasonPath(data.next)}">Saison ${esc(SEASON_FR[data.next.season])}</a>
-      <a class="nav-search" href="${rel}index.html#q" aria-label="Rechercher"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Rechercher</span></a>
+      <a href="${rel}plateformes.html">Plateformes</a>
+      <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Rechercher un animé…" aria-label="Rechercher un animé" autocomplete="off"><div class="hres results" hidden></div></div>
     </nav>
   </div>
 </header>
@@ -108,7 +119,7 @@ ${body}
       <a class="logo" href="${rel}index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>Le guide gratuit pour savoir où regarder tes animés légalement, en France, en Belgique, en Suisse et au Canada. Nous ne diffusons aucune vidéo : nous renvoyons uniquement vers les plateformes officielles.</p>
     </div>
-    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
+    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}plateformes.html">Par plateforme</a><a href="${rel}genres.html">Par genre</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
     <div><h3>Informations</h3><a href="${rel}a-propos.html">À propos</a><a href="${rel}mentions-legales.html">Mentions légales</a><a href="${rel}confidentialite.html">Confidentialité</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure de Paris et Bruxelles (convertis automatiquement si vous êtes ailleurs), mis à jour chaque jour · Certains liens peuvent être affiliés.</div>
@@ -147,7 +158,8 @@ function animePage(m) {
   const next = m.nextAiringEpisode;
   const genres = (m.genres || []).map((g) => GENRE_FR[g] || g);
   const seasonTxt = m.season && m.seasonYear ? `${SEASON_FR[m.season]} ${m.seasonYear}` : null;
-  const alt = [m.title.romaji, m.title.native].filter((t) => t && t !== name);
+  const alts = altTitles(m);
+  const trailer = trailerUrl(m);
 
   const intro = [
     `<strong>${esc(name)}</strong> est ${m.format === "MOVIE" ? "un film d'animation" : "un animé"}${studio ? ` produit par le studio ${esc(studio)}` : ""}${seasonTxt ? `, de la saison ${esc(seasonTxt)}` : ""}.`,
@@ -159,7 +171,7 @@ function animePage(m) {
     ? `<p>En ce moment, <strong>${esc(name)}</strong> est proposé légalement sur ${links.map((l) => `<strong>${esc(l.site)}</strong>`).join(", ").replace(/, ([^,]*)$/, " et $1")}. La disponibilité peut varier selon le pays : vérifiez sur la plateforme depuis votre pays.</p>
 <div class="plats">${links.map((l) => {
         const aff = affiliate(l.site);
-        return `<div class="plat"><span><b>${esc(l.site)}</b>${l.language ? `<small>${esc(l.language)}</small>` : ""}</span><span class="acts"><a class="btn" href="${esc(l.url)}" rel="noopener nofollow" target="_blank">Regarder</a>${aff ? `<a class="btn ghost" href="${esc(aff)}" rel="sponsored noopener" target="_blank">S'abonner</a>` : ""}</span></div>`;
+        return `<div class="plat"><span><b><a href="${rel}plateforme/${PLATFORM_SLUG[l.site]}.html">${esc(l.site)}</a></b>${l.language ? `<small>${esc(l.language)}</small>` : ""}</span><span class="acts"><a class="btn" href="${esc(l.url)}" rel="noopener nofollow" target="_blank">Regarder</a>${aff ? `<a class="btn ghost" href="${esc(aff)}" rel="sponsored noopener" target="_blank">S'abonner</a>` : ""}</span></div>`;
       }).join("")}</div>`
     : `<p>Aucune plateforme légale n'est encore annoncée pour <strong>${esc(name)}</strong>. Cette page se met à jour automatiquement dès qu'une plateforme est confirmée.</p>`;
 
@@ -188,7 +200,7 @@ function animePage(m) {
       <div class="fhero-txt">
         <p class="crumb"><a href="${rel}index.html">Accueil</a> <span>›</span> <a href="${rel}catalogue.html">Animés</a> <span>›</span> ${esc(name)}</p>
         <h1>Où regarder ${esc(name)}&nbsp;?</h1>
-        ${alt.length ? `<p class="alt">${esc(alt.join(" · "))}</p>` : ""}
+        ${alts.length ? `<p class="alt">Aussi connu sous : ${esc(alts.join(" · "))}</p>` : ""}
         <div class="facts">
           <span class="fact">${esc(FORMAT_FR[m.format] || m.format || "Animé")}</span>
           ${m.status ? `<span class="fact">${esc(STATUS_FR[m.status] || m.status)}</span>` : ""}
@@ -196,7 +208,7 @@ function animePage(m) {
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1).replace(".", ",")}/10</span>` : ""}
           ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
         </div>
-        ${links.length ? `<div class="ctas">${links.map((l) => `<a class="cta p-${PCLASS[l.site]}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>Regarder sur ${esc(l.site)}</a>`).join("")}</div>` : `<p class="nolink">Aucune plateforme légale annoncée en France et en Belgique pour l'instant.</p>`}
+        ${links.length ? `<div class="ctas">${links.map((l) => `<a class="cta p-${PCLASS[l.site]}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>Regarder sur ${esc(l.site)}</a>`).join("")}${trailer ? `<a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a>` : ""}</div>` : `<p class="nolink">Aucune plateforme légale annoncée pour l'instant.</p>${trailer ? `<div class="ctas"><a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a></div>` : ""}`}
       </div>
     </div>
   </div>
@@ -205,7 +217,7 @@ function animePage(m) {
       ${nextHtml}
       <section class="box"><h2>Plateformes légales</h2>${where}</section>
       ${adSlot()}
-      <section class="box"><h2>À propos</h2><p>${intro}</p>${genres.length ? `<div class="tags">${genres.map((g) => `<span>${esc(g)}</span>`).join("")}</div>` : ""}</section>
+      <section class="box"><h2>À propos</h2><p>${intro}</p>${(m.genres || []).length ? `<div class="tags">${(m.genres || []).map((g) => genreSlug[g] ? `<a href="${rel}genre/${genreSlug[g]}.html">${esc(GENRE_FR[g] || g)}</a>` : `<span>${esc(GENRE_FR[g] || g)}</span>`).join("")}</div>` : ""}${alts.length ? `<p class="small">Autres titres : ${esc(alts.join(", "))}.</p>` : ""}</section>
       <section class="box"><h2>Questions fréquentes</h2><dl class="faq">${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl></section>
     </div>
   </div>
@@ -218,7 +230,7 @@ function animePage(m) {
       path: `anime/${m.slug}.html`, rel,
       title: `Où regarder ${name} en streaming légal (VOSTFR, VF) ? Plateformes et prochain épisode`,
       desc: `${name} : sur quelles plateformes légales le regarder en France et en Belgique, date et heure du prochain épisode, nombre d'épisodes.`,
-      body,
+      body, image: cover(m),
       jsonld: { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
     }),
   });
@@ -262,6 +274,53 @@ ${adSlot()}`;
   pages.push({ path: seasonPath(s), html: page({ path: seasonPath(s), rel, title: `Animés ${lab} : la liste complète et où les regarder`, desc: `Tous les animés de la saison ${lab}, classés par popularité, avec les plateformes légales pour les regarder en France et en Belgique.`, body }) });
 }
 
+// ---------- Pages plateformes et genres ----------
+const byPop = (a, b) => (b.popularity || 0) - (a.popularity || 0);
+const PLATFORM_INFO = {
+  "Crunchyroll": "La plus grande plateforme d'animés au monde : simulcasts japonais en VOSTFR quelques heures après le Japon, et de nombreuses VF.",
+  "Netflix": "Netflix propose un large choix d'animés, dont de nombreuses exclusivités et des séries doublées en français.",
+  "ADN": "Animation Digital Network, la plateforme française spécialisée dans l'animation japonaise, disponible en France, en Belgique, en Suisse et au Luxembourg.",
+  "Prime Video": "Amazon Prime Video propose une sélection d'animés en VOSTFR et en VF, incluse dans l'abonnement Prime.",
+  "Disney+": "Disney+ diffuse quelques animés japonais en exclusivité, en plus de son catalogue d'animation.",
+};
+const platformPages = Object.keys(PLATFORM_SLUG).map((site) => ({ site, slug: PLATFORM_SLUG[site], list: data.media.filter((m) => streaming(m).some((l) => l.site === site)).sort(byPop) })).filter((p) => p.list.length);
+for (const pl of platformPages) {
+  const rel = "../";
+  const shown = pl.list.slice(0, 400);
+  const body = `
+<div class="phead"><p class="eyebrow">Plateforme</p><h1>Les animés disponibles sur ${esc(pl.site)}</h1>
+<p class="lead">${pl.list.length.toLocaleString("fr-FR")} animés à regarder légalement sur ${esc(pl.site)}, classés par popularité. ${esc(PLATFORM_INFO[pl.site] || "")}</p></div>
+<div class="pgrid">${shown.map((m) => card(m, rel)).join("")}</div>
+${adSlot()}`;
+  pages.push({ path: `plateforme/${pl.slug}.html`, html: page({ path: `plateforme/${pl.slug}.html`, rel, title: `Animés sur ${pl.site} : la liste complète (${pl.list.length} titres)`, desc: `Tous les animés disponibles sur ${pl.site} en France et en Belgique, classés par popularité : ${pl.list.slice(0, 5).map(nameOf).join(", ")}…`, body, image: cover(pl.list[0]) }) });
+}
+{
+  const rel = "";
+  const body = `
+<div class="phead"><p class="eyebrow">Plateformes</p><h1>Où regarder des animés légalement&nbsp;?</h1>
+<p class="lead">Les plateformes de streaming légal d'animés en France, en Belgique et dans les pays francophones, avec leur catalogue.</p></div>
+<div class="ptiles">${platformPages.map((pl) => `<a class="ptile p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><span class="ptile-posters">${pl.list.slice(0, 4).map((m) => poster(m, "medium")).join("")}</span><span class="ptile-b"><b><i></i>${esc(pl.site)}</b><small>${pl.list.length.toLocaleString("fr-FR")} animés</small><span>${esc(PLATFORM_INFO[pl.site] || "")}</span></span></a>`).join("")}</div>`;
+  pages.push({ path: "plateformes.html", html: page({ path: "plateformes.html", rel, title: "Plateformes de streaming d'animés légales : Crunchyroll, ADN, Netflix…", desc: "Comparez les plateformes légales pour regarder des animés en France et en Belgique : Crunchyroll, ADN, Netflix, Prime Video, Disney+.", body }) });
+}
+const genrePages = GENRE_PAGES.map((x) => ({ ...x, list: data.media.filter((m) => (m.genres || []).includes(x.g)).sort(byPop) })).filter((x) => x.list.length >= 5);
+for (const gp of genrePages) {
+  const rel = "../";
+  const body = `
+<div class="phead"><p class="eyebrow">Genre</p><h1>Les meilleurs animés ${esc(gp.fr.toLowerCase())}</h1>
+<p class="lead">${gp.list.length.toLocaleString("fr-FR")} animés du genre ${esc(gp.fr.toLowerCase())}, classés par popularité, avec les plateformes légales où les regarder.</p></div>
+<nav class="genres">${genrePages.map((o) => `<a href="${rel}genre/${o.slug}.html"${o.slug === gp.slug ? ' aria-current="page"' : ""}>${esc(o.fr)}</a>`).join("")}</nav>
+<div class="pgrid">${gp.list.slice(0, 300).map((m) => card(m, rel)).join("")}</div>
+${adSlot()}`;
+  pages.push({ path: `genre/${gp.slug}.html`, html: page({ path: `genre/${gp.slug}.html`, rel, title: `Meilleurs animés ${gp.fr.toLowerCase()} : la liste et où les regarder`, desc: `Les animés ${gp.fr.toLowerCase()} les plus populaires (${gp.list.slice(0, 4).map(nameOf).join(", ")}…) et les plateformes légales pour les regarder.`, body, image: cover(gp.list[0]) }) });
+}
+{
+  const rel = "";
+  const body = `
+<div class="phead"><p class="eyebrow">Genres</p><h1>Les animés par genre</h1><p class="lead">Action, romance, horreur, sport… Trouve ton prochain animé selon ce que tu aimes.</p></div>
+<div class="gtiles">${genrePages.map((gp) => `<a class="gtile" href="genre/${gp.slug}.html">${poster(gp.list[0], "large")}<span><b>${esc(gp.fr)}</b><small>${gp.list.length.toLocaleString("fr-FR")} animés</small></span></a>`).join("")}</div>`;
+  pages.push({ path: "genres.html", html: page({ path: "genres.html", rel, title: "Animés par genre : action, romance, horreur, sport…", desc: "Tous les genres d'animés avec les titres les plus populaires et où les regarder légalement.", body }) });
+}
+
 // ---------- Catalogue A-Z ----------
 {
   const letterOf = (m) => {
@@ -294,6 +353,14 @@ ${adSlot()}`;
   const body = `
 <div class="phead"><p class="eyebrow">Catalogue</p><h1>Tous les animés et où les regarder</h1>
 <p class="lead">${data.media.length.toLocaleString("fr-BE")} animés, des grands classiques aux sorties de la saison, avec les plateformes légales disponibles en France et en Belgique.</p></div>
+<section class="filters" id="filters" aria-label="Filtres">
+  <label>Plateforme<select id="f-p"><option value="">Toutes</option>${Object.keys(PLATFORM_SLUG).map((p) => `<option>${esc(p)}</option>`).join("")}</select></label>
+  <label>Genre<select id="f-g"><option value="">Tous</option>${genrePages.map((g) => `<option value="${g.slug}">${esc(g.fr)}</option>`).join("")}</select></label>
+  <label>Période<select id="f-y"><option value="">Toutes</option><option value="2020">2020 et après</option><option value="2010">2010 – 2019</option><option value="2000">2000 – 2009</option><option value="1990">1990 – 1999</option><option value="1980">Avant 1990</option></select></label>
+  <label>Statut<select id="f-s"><option value="">Tous</option><option value="R">En cours de diffusion</option><option value="F">Terminé</option><option value="N">À venir</option></select></label>
+  <label class="chk"><input type="checkbox" id="f-a"> Avec plateforme uniquement</label>
+</section>
+<div id="f-out" hidden><p class="sub" id="f-count"></p><div class="pgrid" id="f-grid"></div><button class="btn more" id="f-more" type="button" hidden>Afficher plus</button></div>
 ${letterNav(rel, null)}
 <h2 class="sec">Les 100 animés les plus populaires</h2>
 <div class="pgrid">${top.map((m) => card(m, rel)).join("")}</div>
@@ -328,10 +395,12 @@ ${adSlot()}`;
 ${firstDay ? `<section><div class="sec-h"><h2 class="sec">Les sorties du jour</h2><a href="calendrier.html">Toute la semaine →</a></div><p class="sub">${esc(firstDay[1].label[0].toUpperCase() + firstDay[1].label.slice(1))}, à l'heure de Paris et Bruxelles.</p><div class="eps">${firstDay[1].items.slice(0, 8).map((e) => epRow(e, rel)).join("")}</div></section>` : ""}
 ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Populaires en ce moment</h2><a href="catalogue.html">Tout le catalogue →</a></div><div class="pgrid">${popular.map((m) => card(m, rel)).join("")}</div></section>
+<section><div class="sec-h"><h2 class="sec">Par plateforme</h2><a href="plateformes.html">Comparer les plateformes →</a></div><div class="pchips">${platformPages.map((pl) => `<a class="pchip p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><i></i>${esc(pl.site)}<small>${pl.list.length.toLocaleString("fr-FR")}</small></a>`).join("")}</div></section>
+<section><div class="sec-h"><h2 class="sec">Par genre</h2><a href="genres.html">Tous les genres →</a></div><nav class="genres">${genrePages.map((g) => `<a href="genre/${g.slug}.html">${esc(g.fr)}</a>`).join("")}</nav></section>
 <section class="tonight"><h2 class="sec">Qu'est-ce qu'on regarde ce soir&nbsp;?</h2><p class="sub">Choisis ton humeur, on te trouve un animé.</p>
 <div class="moods" id="moods" role="group" aria-label="Humeur"></div><div class="pick" id="pick"></div>
 <script type="application/json" id="pickdata">${JSON.stringify(pickData).replace(/</g, "\\u003c")}</script></section>`;
-  pages.push({ path: "index.html", html: page({ path: "index.html", rel, title: `${cfg.siteName} : où regarder tes animés en streaming légal`, desc: "Trouve sur quelle plateforme légale regarder un animé en France et en Belgique, le calendrier des sorties à l'heure de Paris et Bruxelles et des idées pour ce soir.", body, jsonld: { "@context": "https://schema.org", "@type": "WebSite", name: cfg.siteName, url: SITE + "/" } }) });
+  pages.push({ path: "index.html", html: page({ path: "index.html", rel, title: `${cfg.siteName} : où regarder tes animés en streaming légal`, desc: "Trouve sur quelle plateforme légale regarder un animé en France et en Belgique, le calendrier des sorties à l'heure de Paris et Bruxelles et des idées pour ce soir.", body, image: heroBg[0], jsonld: { "@context": "https://schema.org", "@type": "WebSite", name: cfg.siteName, url: SITE + "/" } }) });
 }
 
 // ---------- À propos & 404 ----------
@@ -356,11 +425,15 @@ await rm(OUT, { recursive: true, force: true });
 await mkdir(new URL("anime/", OUT), { recursive: true });
 await mkdir(new URL("saison/", OUT), { recursive: true });
 await mkdir(new URL("catalogue/", OUT), { recursive: true });
+await mkdir(new URL("plateforme/", OUT), { recursive: true });
+await mkdir(new URL("genre/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
-const search = data.media.map((m) => ({ t: nameOf(m), a: [m.title.romaji, m.title.native].filter(Boolean).join(" "), u: `anime/${m.slug}.html`, i: m.coverImage?.medium || "", y: m.seasonYear || "", p: streaming(m).map((l) => l.site).slice(0, 3) }));
+const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
+const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [m.title.romaji, m.title.english, ...(m.synonyms || [])].filter(Boolean).join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: m.coverImage?.medium || "", y: m.seasonYear || "", p: streaming(m).map((l) => l.site).slice(0, 3) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 const today = new Date().toISOString().slice(0, 10);
 await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter((p) => p.path !== "404.html").map((p) => `<url><loc>${esc(`${SITE}/${p.path}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
+await writeFile(new URL("manifest.webmanifest", OUT), JSON.stringify({ name: `${cfg.siteName} : où regarder tes animés`, short_name: cfg.siteName, start_url: BASE, scope: BASE, display: "standalone", background_color: "#0B0C16", theme_color: "#0B0C16", lang: "fr", icons: [{ src: `${BASE}icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }));
 await writeFile(new URL("robots.txt", OUT), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 console.log(`Site généré : ${pages.length} pages dans dist/`);
