@@ -63,6 +63,30 @@ const others = (m) => {
     .map((l) => ({ ...l, site: OTHER_PLATFORMS[l.site] }))
     .filter((l) => !seen.has(l.site) && seen.add(l.site));
 };
+// Franchise : pour un animé sans plateforme, cherche une suite / saison / série liée qui en a une
+const famCache = new Map();
+function family(m) {
+  if (famCache.has(m.id)) return famCache.get(m.id);
+  let res = null;
+  if (!streaming(m).length) {
+    const seen = new Set([m.id]);
+    let frontier = [m];
+    for (let depth = 0; depth < 4 && !res && frontier.length; depth++) {
+      const next = [];
+      for (const x of frontier) for (const id of x.rel || []) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const o = byId.get(id);
+        if (!o) continue;
+        if (streaming(o).length && (!res || (o.popularity || 0) > (res.popularity || 0))) res = o;
+        next.push(o);
+      }
+      frontier = next;
+    }
+  }
+  famCache.set(m.id, res);
+  return res;
+}
 // Liens de recherche pour vérifier soi-même où regarder un animé en France
 const searchLinks = (m) => {
   const q = encodeURIComponent(m.title.english || m.title.romaji || nameOf(m));
@@ -155,7 +179,9 @@ function chips(m, max = 4) {
   const links = streaming(m).slice(0, max);
   if (!links.length) {
     const o = others(m).slice(0, max);
-    return o.length ? o.map((l) => `<span class="chip p-other"><i></i>${esc(l.site)}</span>`).join("") : `<span class="chip muted">À chercher</span>`;
+    if (o.length) return o.map((l) => `<span class="chip p-other"><i></i>${esc(l.site)}</span>`).join("");
+    const f = family(m);
+    return f ? `<span class="chip muted" title="Une autre partie de la franchise est disponible">Franchise : ${esc(streaming(f).map((l) => l.site).slice(0, 2).join(", "))}</span>` : `<span class="chip muted">À chercher</span>`;
   }
   return links.map((l) => `<span class="chip p-${PCLASS[l.site]}"><i></i>${esc(l.site)}</span>`).join("");
 }
@@ -179,6 +205,7 @@ function animePage(m) {
   const name = nameOf(m);
   const links = streaming(m);
   const oth = others(m);
+  const fam = family(m);
   const studio = m.studios?.nodes?.[0]?.name;
   const next = m.nextAiringEpisode;
   const genres = (m.genres || []).map((g) => GENRE_FR[g] || g);
@@ -198,7 +225,7 @@ function animePage(m) {
         const aff = affiliate(l.site);
         return `<div class="plat"><span><b><a href="${rel}plateforme/${PLATFORM_SLUG[l.site]}.html">${esc(l.site)}</a></b>${l.language ? `<small>${esc(l.language)}</small>` : ""}</span><span class="acts"><a class="btn" href="${esc(l.url)}" rel="noopener nofollow" target="_blank">Regarder</a>${aff ? `<a class="btn ghost" href="${esc(aff)}" rel="sponsored noopener" target="_blank">S'abonner</a>` : ""}</span></div>`;
       }).join("")}</div>`
-    : `<p>Aucune grande plateforme française (Crunchyroll, ADN, Netflix, Prime Video, Disney+) n'est encore connue pour <strong>${esc(name)}</strong>. ${oth.length ? "Il existe toutefois d'autres liens officiels ci-dessous. " : ""}Vous pouvez aussi vérifier en un clic avec les recherches ci-dessous. Cette page se met à jour automatiquement chaque jour.</p>`;
+    : `<p>Aucune grande plateforme française (Crunchyroll, ADN, Netflix, Prime Video, Disney+) n'est encore connue pour <strong>${esc(name)}</strong>. ${oth.length ? "Il existe toutefois d'autres liens officiels ci-dessous. " : ""}${fam ? `En revanche, <a href="${esc(fam.slug)}.html">${esc(nameOf(fam))}</a>, de la même franchise, est disponible sur ${streaming(fam).map((l) => `<strong>${esc(l.site)}</strong>`).join(", ")} : ${m.format === "MOVIE" ? "ce film" : "cette partie"} y est parfois proposé${m.format === "MOVIE" ? "" : "e"} aussi, vérifiez sur la plateforme. ` : ""}Vous pouvez aussi vérifier en un clic avec les recherches ci-dessous. Cette page se met à jour automatiquement chaque jour.</p>`;
   const othHtml = oth.length ? `<h3 class="h3">Autres liens officiels</h3><p class="small">Disponibilité variable selon le pays.</p><div class="plats">${oth.map((l) => `<div class="plat"><span><b>${esc(l.site)}</b>${l.language ? `<small>${esc(l.language)}</small>` : ""}</span><span class="acts"><a class="btn" href="${esc(l.url)}" rel="noopener nofollow" target="_blank">Voir</a></span></div>`).join("")}</div>` : "";
   const findHtml = `<h3 class="h3">${links.length ? "Vérifier ailleurs" : "Chercher où le regarder"}</h3><div class="findl">${searchLinks(m).map(([n, u]) => `<a class="btn ghost" href="${esc(u)}" rel="noopener nofollow" target="_blank">${esc(n)}</a>`).join("")}</div>`;
 
@@ -469,7 +496,7 @@ for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
 const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
 const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
-const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: (m.coverImage?.medium || "").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3) }));
+const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: (m.coverImage?.medium || "").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 const today = new Date().toISOString().slice(0, 10);
 await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter((p) => p.path !== "404.html").map((p) => `<url><loc>${esc(`${SITE}/${p.path}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);

@@ -36,6 +36,7 @@ const MEDIA_FIELDS = `
   studios(isMain: true) { nodes { name } }
   nextAiringEpisode { airingAt episode }
   externalLinks { site url type language }
+  relations { edges { relationType node { id type } } }
 `;
 
 const SEASON_Q = `query ($season: MediaSeason, $year: Int, $page: Int) {
@@ -79,8 +80,14 @@ async function allPages(query, vars, pick, maxPages = 6) {
 const now = new Date();
 const cur = seasonOf(now), nxt = nextSeason(cur);
 const media = new Map();
+// Liens de franchise (suites, films, OAV…) : on garde seulement les identifiants utiles
+const REL_TYPES = new Set(["PREQUEL", "SEQUEL", "PARENT", "SIDE_STORY", "SUMMARY", "ALTERNATIVE", "COMPILATION", "CONTAINS"]);
 const add = (m, tag) => {
   if (!m || m.isAdult) return;
+  if (m.relations) {
+    m.rel = [...new Set((m.relations.edges || []).filter((e) => e.node?.type === "ANIME" && REL_TYPES.has(e.relationType)).map((e) => e.node.id))];
+    delete m.relations;
+  }
   const prev = media.get(m.id);
   media.set(m.id, { ...(prev || m), ...m, tags: [...new Set([...(prev?.tags || []), tag])] });
 };
@@ -168,6 +175,35 @@ try {
   console.log(`ADN : ${adn.length} titres, ${adnMatched} associés au catalogue`);
 } catch (e) {
   console.log("ADN ignoré : " + e.message);
+}
+
+// ---------- Crunchyroll : plan du site public (liste des séries) ----------
+let crAdded = 0;
+try {
+  const crList = [];
+  for (const L of ["%23", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) {
+    for (let page = 0; page < 5; page++) {
+      const r = await fetch(`https://www.crunchyroll.com/sitemaps/series/${L}.xml?page=${page}`, { headers: { "User-Agent": "Mozilla/5.0 (compatible; tsuzuki-bot)" } });
+      if (!r.ok) break;
+      const t = await r.text();
+      const found = [...t.matchAll(/<loc>https:\/\/www\.crunchyroll\.com\/series\/([A-Z0-9]+)\/([^<]+)<\/loc>/g)].map((m) => ({ id: m[1], slug: m[2] }));
+      crList.push(...found);
+      if (found.length < 90) break;
+      await sleep(300);
+    }
+  }
+  for (const c of crList) {
+    const m = index.get(key(c.slug));
+    if (!m) continue;
+    m.externalLinks = m.externalLinks || [];
+    if (!m.externalLinks.some((l) => l.site === "Crunchyroll")) {
+      m.externalLinks.push({ site: "Crunchyroll", url: `https://www.crunchyroll.com/fr/series/${c.id}/${c.slug}`, type: "STREAMING", language: null });
+      crAdded++;
+    }
+  }
+  console.log(`Crunchyroll : ${crList.length} séries, ${crAdded} liens ajoutés`);
+} catch (e) {
+  console.log("Crunchyroll ignoré : " + e.message);
 }
 
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
