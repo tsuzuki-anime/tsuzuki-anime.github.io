@@ -142,7 +142,7 @@ async function adnCatalog() {
     return JSON.parse(await readFile(new URL("../data/adn-fallback.json", import.meta.url), "utf8"));
   }
 }
-const key = (s) => String(s || "").normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+const key = (s) => String(s || "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, "");
 const index = new Map();
 for (const m of media.values()) {
   for (const t of [m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || [])]) {
