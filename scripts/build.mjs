@@ -260,6 +260,7 @@ ${body}
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure de Paris et Bruxelles (convertis automatiquement si vous êtes ailleurs), mis à jour chaque jour · Certains liens peuvent être affiliés.</div>
 </footer>
+<script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="${rel}world.js" defer></script>
 <script src="${rel}app.js" defer></script>
 </body>
@@ -607,6 +608,7 @@ prosePage("mentions-legales.html", `Mentions légales | ${cfg.siteName}`, `Menti
 <h2>Exactitude</h2><p>Les disponibilités et horaires sont mis à jour automatiquement chaque jour mais peuvent changer sans préavis. Vérifiez toujours sur la plateforme concernée.</p>`);
 prosePage("confidentialite.html", `Politique de confidentialité | ${cfg.siteName}`, `Politique de confidentialité du site ${cfg.siteName}.`, "Politique de confidentialité", `
 <p>${esc(cfg.siteName)} ne demande aucune inscription et ne collecte directement aucune donnée personnelle.</p>
+<h2>Mesure d'audience</h2><p>Le site utilise GoatCounter, un outil de statistiques sans cookies qui compte les visites de façon anonyme (pages vues, pays, type d'appareil), sans suivi individuel.</p>
 <h2>Services tiers</h2><p>Pour afficher le site, votre navigateur contacte des services tiers : Google Fonts (polices d'écriture) et AniList (affiches des animés). Ces services peuvent recevoir votre adresse IP, comme pour toute visite d'un site web.</p>
 ${cfg.adsenseClient ? `<h2>Publicité</h2><p>Le site affiche des annonces Google AdSense. Google peut utiliser des cookies pour diffuser des annonces adaptées. Vous pouvez gérer vos préférences sur la page « Paramètres des annonces » de Google.</p>` : ""}
 <h2>Vos droits</h2><p>Conformément au RGPD, vous pouvez exercer vos droits auprès des services tiers concernés. Pour toute question, utilisez la page GitHub du projet.</p>`);

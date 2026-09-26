@@ -110,6 +110,7 @@ ${body}
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily · Some links may be affiliate links.</div>
 </footer>
+<script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="${BASE}world.js" defer></script>
 <script src="${BASE}app.js" defer></script>
 </body>
@@ -379,7 +380,7 @@ ${adSlot()}
   const prose = (path, title, h1, html) => write(path, page({ path, rel: "", title, desc: `${title}.`, body: `<div class="phead"><h1>${h1}</h1></div><div class="prose">${html}</div>` }));
   await prose("about.html", `About ${cfg.siteName}`, "About", `<p>${esc(cfg.siteName)} helps anime fans everywhere find where to stream their shows legally, and when new episodes come out.</p><p>The site doesn't host or stream any video. It only links to official platforms. Some links may be affiliate links: if you subscribe through them, the site may earn a commission at no extra cost to you.</p><p>Data comes from AniList and is updated automatically every day. Availability varies by country: always check on the platform.</p>`);
   await prose("legal.html", `Legal notice | ${cfg.siteName}`, "Legal notice", `<p>${esc(cfg.siteName)} is an independent project, not affiliated with the streaming platforms mentioned or with the rights holders of the works shown.</p><p>The site is hosted by GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA).</p><p>Titles, information and artwork come from the AniList database and remain the property of their respective owners. They are used only to identify the works and point to their legal distribution. Rights holders can request removal through the project's GitHub page.</p>`);
-  await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice is stored only in your own browser.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
+  await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice is stored only in your own browser.</p><p>We use GoatCounter, a cookie-free analytics tool that counts visits anonymously (page views, country, device type) without tracking individuals.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
 
   return written;
 }
