@@ -5,13 +5,16 @@ import { writeFile, mkdir, readFile } from "node:fs/promises";
 const API = "https://graphql.anilist.co";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function gql(query, variables, tries = 4) {
+async function gql(query, variables, tries = 6) {
   for (let i = 0; i < tries; i++) {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ query, variables }),
-    });
+    let res;
+    try {
+      res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables }),
+      });
+    } catch (e) { console.error("Réseau :", e.message); await sleep(10000); continue; }
     if (res.status === 429) { await sleep(65000); continue; }
     const json = await res.json().catch(() => null);
     if (res.ok && json && !json.errors) { await sleep(2200); return json.data; }
@@ -88,19 +91,23 @@ for (const s of [cur, nxt]) {
   console.log(`Saison ${s.season} ${s.year} : ${list.length} animés`);
 }
 
-// Catalogue complet : les animés les plus populaires de chaque année (classiques compris)
-const YEAR_Q = `query ($year: Int, $page: Int) {
+// Catalogue complet : TOUS les animés d'AniList (séries, films, OAV, ONA, spéciaux, titres niches compris),
+// récupérés année par année selon leur date de sortie. Seuls les clips musicaux et les contenus adultes sont exclus.
+const RANGE_Q = `query ($from: FuzzyDateInt, $to: FuzzyDateInt, $page: Int) {
   Page(page: $page, perPage: 50) {
     pageInfo { hasNextPage }
-    media(type: ANIME, isAdult: false, seasonYear: $year, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
+    media(type: ANIME, isAdult: false, format_not: MUSIC, startDate_greater: $from, startDate_lesser: $to, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
   }
 }`;
 let catalogCount = 0;
-for (let year = now.getUTCFullYear(); year >= 1980; year--) {
-  const pagesForYear = year >= 2000 ? 2 : 1; // 100 animés par an depuis 2000, 50 avant
-  const list = await allPages(YEAR_Q, { year }, (p) => p.media, pagesForYear);
+const ranges = [];
+for (let year = now.getUTCFullYear() + 2; year >= 1960; year--) ranges.push({ from: (year - 1) * 10000 + 1231, to: (year + 1) * 10000, label: String(year) });
+ranges.push({ from: 1, to: 19600000, label: "avant 1960" });
+for (const r of ranges) {
+  const list = await allPages(RANGE_Q, { from: r.from, to: r.to }, (p) => p.media, 60);
   list.forEach((m) => add(m, "catalog"));
   catalogCount += list.length;
+  console.log(`  ${r.label} : ${list.length}`);
 }
 console.log(`Catalogue : ${catalogCount} animés`);
 
@@ -149,6 +156,9 @@ try {
   for (const s of adn) {
     const m = index.get(key(s.t)) || index.get(key(s.o));
     if (!m) continue;
+    // Titre utilisé par ADN (souvent le titre français) : ajouté aux titres alternatifs pour la recherche
+    const known = [m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || [])].map(key);
+    if (s.t && !known.includes(key(s.t))) { m.synonyms = [...(m.synonyms || []), s.t]; m.titleFr = s.t; }
     m.externalLinks = m.externalLinks || [];
     if (!m.externalLinks.some((l) => l.site === "ADN")) {
       m.externalLinks.push({ site: "ADN", url: "https://animationdigitalnetwork.com" + s.u, type: "STREAMING", language: null });
@@ -163,6 +173,6 @@ try {
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
 await writeFile(
   new URL("../data/anime.json", import.meta.url),
-  JSON.stringify({ fetchedAt: now.toISOString(), current: cur, next: nxt, media: [...media.values()], schedule }, null, 1)
+  JSON.stringify({ fetchedAt: now.toISOString(), current: cur, next: nxt, media: [...media.values()], schedule })
 );
 console.log(`OK : ${media.size} animés enregistrés`);

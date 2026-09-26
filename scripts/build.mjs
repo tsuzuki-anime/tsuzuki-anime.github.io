@@ -35,6 +35,7 @@ for (const m of [...data.media].sort((a, b) => a.id - b.id)) {
   m.slug = s;
 }
 const byId = new Map(data.media.map((m) => [m.id, m]));
+const POPULAR = [...data.media].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 // Plateformes disponibles en France et en Belgique (les données AniList sont mondiales)
 const BE_PLATFORMS = {
   "Crunchyroll": "Crunchyroll",
@@ -57,7 +58,8 @@ const PLATFORM_SLUG = { "Crunchyroll": "crunchyroll", "Netflix": "netflix", "ADN
 const GENRE_PAGES = Object.entries(GENRE_FR).filter(([g]) => g !== "Ecchi").map(([g, fr]) => ({ g, fr, slug: slugify(fr) }));
 const genreSlug = Object.fromEntries(GENRE_PAGES.map((x) => [x.g, x.slug]));
 const LATIN = /^[\p{Script=Latin}\p{N}\p{P}\p{Zs}\p{S}]+$/u;
-const altTitles = (m) => [...new Set([m.title.romaji, m.title.english, ...(m.synonyms || [])].filter((t) => t && t !== nameOf(m) && LATIN.test(t)))].slice(0, 6);
+// Autres titres : français (ADN), anglais, romaji, puis japonais / chinois / coréen
+const altTitles = (m) => [...new Set([m.titleFr, m.title.english, m.title.romaji, ...(m.synonyms || []).filter((t) => LATIN.test(t)), m.title.native, ...(m.synonyms || []).filter((t) => !LATIN.test(t))].filter((t) => t && t !== nameOf(m)))].slice(0, 8);
 const trailerUrl = (m) => (m.trailer?.site === "youtube" && m.trailer.id ? `https://www.youtube.com/watch?v=${encodeURIComponent(m.trailer.id)}` : "");
 const affiliate = (site) => cfg.affiliates?.[site] || Object.entries(BE_PLATFORMS).filter(([, v]) => v === site).map(([k]) => cfg.affiliates?.[k]).find(Boolean) || "";
 
@@ -140,7 +142,7 @@ function poster(m, size = "large", eager = false) {
   const src = cover(m, size);
   return `<span class="poster" style="--c:${esc(m.coverImage?.color || "#2A2D4A")}">${src ? `<img src="${esc(src)}" alt="" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">` : `<b>${esc(nameOf(m).slice(0, 1))}</b>`}</span>`;
 }
-const metaLine = (m) => [FORMAT_FR[m.format] || m.format, m.seasonYear].filter(Boolean).join(" · ");
+const metaLine = (m) => [FORMAT_FR[m.format] || m.format, m.seasonYear || m.startDate?.year].filter(Boolean).join(" · ");
 function card(m, rel) {
   return `<a class="pcard" href="${rel}anime/${m.slug}.html">
   ${poster(m)}
@@ -185,10 +187,11 @@ function animePage(m) {
     ...(m.episodes ? [[`Combien d'épisodes compte ${name} ?`, `${m.episodes} épisode${m.episodes > 1 ? "s" : ""}.`]] : []),
   ];
 
-  const similar = data.media
-    .filter((o) => o.id !== m.id && (o.genres || []).some((g) => (m.genres || []).includes(g)))
-    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-    .slice(0, 6);
+  const similar = [];
+  for (const o of POPULAR) {
+    if (o.id !== m.id && (o.genres || []).some((g) => (m.genres || []).includes(g))) similar.push(o);
+    if (similar.length >= 6) break;
+  }
 
   const banner = m.bannerImage || cover(m);
   const body = `
@@ -335,18 +338,28 @@ ${adSlot()}`;
   }
   const letters = [...groups.keys()].sort((a, b) => (a === "0-9" ? -1 : b === "0-9" ? 1 : a.localeCompare(b)));
   const letterNav = (rel, current) => `<nav class="letters" aria-label="Lettres">${letters.map((l) => `<a href="${rel}catalogue/${l}.html"${l === current ? ' aria-current="page"' : ""}>${l.toUpperCase()}</a>`).join("")}</nav>`;
-  const row = (m, rel) => `<a class="row" href="${rel}anime/${m.slug}.html">${poster(m, "medium")}<span class="row-t"><b>${esc(nameOf(m))}</b><small>${esc(FORMAT_FR[m.format] || m.format || "")}${m.seasonYear ? " · " + m.seasonYear : ""}${m.title.romaji && m.title.romaji !== nameOf(m) ? " · " + esc(m.title.romaji) : ""}</small></span><span class="chips">${chips(m, 3)}</span></a>`;
+  const row = (m, rel) => `<a class="row" href="${rel}anime/${m.slug}.html">${poster(m, "medium")}<span class="row-t"><b>${esc(nameOf(m))}</b><small>${esc(FORMAT_FR[m.format] || m.format || "")}${(m.seasonYear || m.startDate?.year) ? " · " + (m.seasonYear || m.startDate?.year) : ""}${m.title.romaji && m.title.romaji !== nameOf(m) ? " · " + esc(m.title.romaji) : ""}</small></span><span class="chips">${chips(m, 3)}</span></a>`;
+  const PER = 250; // animés par page, pour garder des pages légères
   for (const l of letters) {
     const rel = "../";
-    const list = groups.get(l).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr"));
+    const all = groups.get(l).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr"));
     const L = l.toUpperCase();
-    const body = `
-<div class="phead"><p class="eyebrow">Catalogue</p><h1>Animés commençant par ${L}</h1>
-<p class="lead">${list.length} animés, avec les plateformes légales où les regarder en France et en Belgique.</p></div>
+    const nPages = Math.ceil(all.length / PER);
+    const pathOf = (n) => `catalogue/${l}${n > 1 ? "-" + n : ""}.html`;
+    for (let n = 1; n <= nPages; n++) {
+      const list = all.slice((n - 1) * PER, n * PER);
+      const pager = nPages > 1 ? `<nav class="pager" aria-label="Pages">${n > 1 ? `<a href="${rel}${pathOf(n - 1)}">← Précédent</a>` : ""}${Array.from({ length: nPages }, (_, i) => i + 1).map((k) => k === n ? `<span aria-current="page">${k}</span>` : `<a href="${rel}${pathOf(k)}">${k}</a>`).join("")}${n < nPages ? `<a href="${rel}${pathOf(n + 1)}">Suivant →</a>` : ""}</nav>` : "";
+      const suffix = nPages > 1 ? ` (page ${n} sur ${nPages})` : "";
+      const body = `
+<div class="phead"><p class="eyebrow">Catalogue</p><h1>Animés commençant par ${L}${suffix}</h1>
+<p class="lead">${all.length.toLocaleString("fr-FR")} animés, avec les plateformes légales où les regarder en France et en Belgique.</p></div>
 ${letterNav(rel, l)}
+${pager}
 <div class="rows">${list.map((m) => row(m, rel)).join("")}</div>
+${pager}
 ${adSlot()}`;
-    pages.push({ path: `catalogue/${l}.html`, html: page({ path: `catalogue/${l}.html`, rel, title: `Animés de A à Z : lettre ${L} | où les regarder en France et en Belgique`, desc: `Liste des animés commençant par ${L} et les plateformes légales pour les regarder en France et en Belgique.`, body }) });
+      pages.push({ path: pathOf(n), html: page({ path: pathOf(n), rel, title: `Animés de A à Z : lettre ${L}${suffix} | où les regarder en France et en Belgique`, desc: `Liste des animés commençant par ${L}${suffix} et les plateformes légales pour les regarder en France et en Belgique.`, body }) });
+    }
   }
   const rel = "";
   const top = [...data.media].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 100);
@@ -429,8 +442,9 @@ await mkdir(new URL("plateforme/", OUT), { recursive: true });
 await mkdir(new URL("genre/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
+const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
 const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
-const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [m.title.romaji, m.title.english, ...(m.synonyms || [])].filter(Boolean).join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: m.coverImage?.medium || "", y: m.seasonYear || "", p: streaming(m).map((l) => l.site).slice(0, 3) }));
+const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: (m.coverImage?.medium || "").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: streaming(m).map((l) => l.site).slice(0, 3) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 const today = new Date().toISOString().slice(0, 10);
 await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter((p) => p.path !== "404.html").map((p) => `<url><loc>${esc(`${SITE}/${p.path}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
