@@ -1,4 +1,17 @@
 (function () {
+  // Langue de la page (fr par défaut, en pour la version anglaise)
+  var EN = document.documentElement.lang === "en";
+  var T = EN ? {
+    search: "Not found yet", none: "Not found yet", fr: "Franchise: ", empty: "No anime found. Try another title: English, romaji, Japanese or Chinese.",
+    found: function (n) { return n.toLocaleString("en-US") + " anime found"; }, now: "Available now", inT: "In ", d: " d ", h: " h ", mn: " min",
+    mood: "In the mood for ", on: "Available on ", again: "Another idea", local: function (p) { return "Your local time (" + p + " in Paris)"; }
+  } : {
+    search: "À chercher", none: "À chercher", fr: "Franchise : ", empty: "Aucun animé trouvé. Essaie avec un autre titre : français, anglais, romaji, japonais ou chinois.",
+    found: function (n) { return n.toLocaleString("fr-FR") + " animé" + (n > 1 ? "s" : "") + " trouvé" + (n > 1 ? "s" : ""); }, now: "Disponible maintenant", inT: "Dans ", d: " j ", h: " h ", mn: " min",
+    mood: "Envie de ", on: "Disponible sur ", again: "Autre idée", local: function (p) { return "Heure locale (" + p + " à Paris)"; }
+  };
+  var IDX = document.documentElement.getAttribute("data-idx") || "";
+  var BASE_REGION = EN ? "us" : "fr";
   var PC = { "Crunchyroll": "cr", "Netflix": "nf", "ADN": "adn", "Prime Video": "pv", "Disney+": "dp" };
   function pcl(p) { return PC[p] || "other"; }
   // Normalisation valable pour toutes les écritures (latin, japonais, chinois, coréen…)
@@ -30,9 +43,15 @@
     document.querySelectorAll("select[data-region]").forEach(function (s) { s.value = REGION; });
     document.querySelectorAll(".chipset[data-w]").forEach(function (el) {
       if (el._fr === undefined) el._fr = el.innerHTML;
-      if (REGION === "fr") { el.innerHTML = el._fr; return; }
+      if (REGION === BASE_REGION) { el.innerHTML = el._fr; return; }
       var list = regional(el.dataset.w ? el.dataset.w.split("|") : []).slice(0, +el.dataset.max || 3);
-      el.innerHTML = list.length ? list.map(chipW).join("") : '<span class="chip muted">À chercher</span>';
+      el.innerHTML = list.length ? list.map(chipW).join("") : '<span class="chip muted">' + T.search + "</span>";
+    });
+    // Boutons « regarder » propres à une région (version anglaise)
+    document.querySelectorAll("[data-rbox]").forEach(function (box) {
+      var any = false;
+      box.querySelectorAll("[data-r]").forEach(function (a) { var ok = a.dataset.r.split(" ").indexOf(REGION) > -1; a.hidden = !ok; any = any || ok; });
+      var none = box.querySelector("[data-rnone]"); if (none) none.hidden = any;
     });
     var wt = document.querySelector(".wtable");
     if (wt) {
@@ -56,14 +75,14 @@
   });
   applyRegion();
   function chips(x) {
-    if (REGION !== "fr") { var l = regional(x.w).slice(0, 3); return l.length ? l.map(chipW).join("") : '<span class="chip muted">À chercher</span>'; }
-    return x.p.length ? x.p.map(chip).join("") : x.f ? '<span class="chip muted">Franchise : ' + esc(x.f.join(", ")) + "</span>" : '<span class="chip muted">À chercher</span>'; }
+    if (REGION !== "fr") { var l = regional(x.w).slice(0, 3); return l.length ? l.map(chipW).join("") : '<span class="chip muted">' + T.search + "</span>"; }
+    return x.p.length ? x.p.map(chip).join("") : x.f ? '<span class="chip muted">' + T.fr + esc(x.f.join(", ")) + "</span>" : '<span class="chip muted">' + T.search + "</span>"; }
 
   var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
   // Index de recherche, chargé une seule fois et seulement quand on en a besoin
   var idxPromise = null;
   function loadIdx(rel) {
-    if (!idxPromise) idxPromise = fetch(rel + "search.json").then(function (r) { return r.json(); }).then(function (d) {
+    if (!idxPromise) idxPromise = fetch(IDX || rel + "search.json").then(function (r) { return r.json(); }).then(function (d) {
       d.forEach(function (x) { x._n = norm(x.t); x._a = norm(x.a); if (x.i && x.i.indexOf("http") !== 0) x.i = IMG + x.i; });
       return d;
     });
@@ -85,7 +104,7 @@
     return list.length ? list.map(function (x) {
       return '<a class="res" href="' + rel + x.u + '">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy">' : '<span class="ph"></span>') +
         "<span><b>" + esc(x.t) + "</b>" + (x.y ? "<small>" + esc(x.y) + "</small>" : "") + '</span><span class="chips">' + chips(x) + "</span></a>";
-    }).join("") : '<p class="empty">Aucun animé trouvé. Essaie avec un autre titre : français, anglais, romaji, japonais ou chinois.</p>';
+    }).join("") : '<p class="empty">' + T.empty + "</p>";
   }
   function bindSearch(input, out, rel, max) {
     var run = function () {
@@ -134,7 +153,7 @@
           if (a && !(REGION === "fr" ? x.p.length : regional(x.w).length)) return false;
           return true;
         });
-        shown = 48; count.textContent = last.length.toLocaleString("fr-FR") + " animé" + (last.length > 1 ? "s" : "") + " trouvé" + (last.length > 1 ? "s" : "");
+        shown = 48; count.textContent = T.found(last.length);
         fOut.hidden = false; draw();
       });
     };
@@ -160,9 +179,9 @@
     var at = +cd.dataset.at * 1000;
     (function tick() {
       var s = Math.floor((at - Date.now()) / 1000);
-      if (s <= 0) { cd.textContent = "Disponible maintenant"; return; }
+      if (s <= 0) { cd.textContent = T.now; return; }
       var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
-      cd.textContent = "Dans " + (d ? d + " j " : "") + h + " h " + m + " min";
+      cd.textContent = T.inT + (d ? d + T.d : "") + h + T.h + m + T.mn;
       setTimeout(tick, 30000);
     })();
   }
@@ -173,7 +192,7 @@
     var moods = JSON.parse(pd.textContent), cur = 0, n = 0;
     var drawPick = function () {
       var m = moods[cur], it = m.items[n % m.items.length];
-      pk.innerHTML = (it.i ? '<img src="' + esc(it.i) + '" alt="">' : "<span></span>") + '<div><span class="k">Envie de ' + esc(m.label) + '</span><a class="t" href="' + it.u + '">' + esc(it.t) + "</a><p>Disponible sur " + esc(it.p) + '</p><button class="btn" type="button" id="again">Autre idée</button></div>';
+      pk.innerHTML = (it.i ? '<img src="' + esc(it.i) + '" alt="">' : "<span></span>") + '<div><span class="k">' + T.mood + esc(m.label) + '</span><a class="t" href="' + it.u + '">' + esc(it.t) + "</a><p>" + T.on + esc(it.p) + '</p><button class="btn" type="button" id="again">' + T.again + "</button></div>";
       document.getElementById("again").onclick = function () { n++; drawPick(); };
     };
     moods.forEach(function (m, i) {
@@ -189,12 +208,13 @@
 // Heures converties dans le fuseau horaire du visiteur (Canada, Afrique, etc.)
 (function () {
   var tz; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return; }
-  var f = function (z) { return new Intl.DateTimeFormat("fr-FR", { timeZone: z, hour: "2-digit", minute: "2-digit" }); };
+  var EN = document.documentElement.lang === "en";
+  var f = function (z) { return new Intl.DateTimeFormat(EN ? "en-GB" : "fr-FR", { timeZone: z, hour: "2-digit", minute: "2-digit" }); };
   var paris = f("Europe/Paris"), local = f(tz), now = new Date();
   if (paris.format(now) === local.format(now)) return;
   document.querySelectorAll("time[data-t]").forEach(function (t) {
     var d = new Date(+t.dataset.t * 1000);
     t.textContent = local.format(d);
-    t.title = "Heure locale (" + paris.format(d) + " à Paris)";
+    t.title = EN ? "Your local time (" + paris.format(d) + " in Paris)" : "Heure locale (" + paris.format(d) + " à Paris)";
   });
 })();

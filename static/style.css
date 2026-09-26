@@ -257,3 +257,6 @@ a.chip:hover{border-color:var(--pc,var(--line))}
 .wr{font-weight:600;font-size:14px}
 .wl{display:flex;flex-wrap:wrap;gap:6px}
 @media (max-width:560px){.wrow{grid-template-columns:1fr}}
+.top nav a.lang{font-size:13px;font-weight:800;letter-spacing:.04em;border:1px solid var(--line);padding:7px 9px;margin-left:6px;color:var(--ink)}
+@media (max-width:860px){.top nav>a.lang{display:inline-block}}
+html[lang="en"] .wrow.me .wr::after{content:" · your region"}
