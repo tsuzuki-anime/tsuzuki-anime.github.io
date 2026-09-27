@@ -117,6 +117,16 @@ for (const r of ranges) {
   console.log(`  ${r.label} : ${list.length}`);
 }
 console.log(`Catalogue : ${catalogCount} animés`);
+// Animés annoncés, y compris ceux sans date de sortie
+const UPCOMING_Q = `query ($page: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo { hasNextPage }
+    media(type: ANIME, isAdult: false, format_not: MUSIC, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
+  }
+}`;
+const upcoming = await allPages(UPCOMING_Q, {}, (p) => p.media, 40);
+upcoming.forEach((m) => add(m, "upcoming"));
+console.log(`À venir : ${upcoming.length} animés`);
 
 const from = Math.floor(now.getTime() / 1000) - 86400;
 const to = from + 9 * 86400;
