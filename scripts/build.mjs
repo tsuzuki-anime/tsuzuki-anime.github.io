@@ -282,7 +282,7 @@ function chipsFr(m, max) {
   }
   return links.map((l) => `<span class="chip p-${PCLASS[l.site]}"><i></i>${esc(l.site)}</span>`).join("");
 }
-const cover = (m, size = "large") => m.coverImage?.[size] || m.coverImage?.large || m.coverImage?.medium || "";
+const cover = (m, size = "large") => [m.coverImage?.[size], m.coverImage?.large, m.coverImage?.medium].find((u) => u && !/\/default\.(jpg|png)$/.test(u)) || "";
 function poster(m, size = "large", eager = false) {
   const src = cover(m, size);
   return `<span class="poster" style="--c:${esc(m.coverImage?.color || "#2A2D4A")}">${src ? `<img src="${esc(src)}" alt="" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">` : `<b>${esc(nameOf(m).slice(0, 1))}</b>`}</span>`;
@@ -624,9 +624,9 @@ await mkdir(new URL("plateforme/", OUT), { recursive: true });
 await mkdir(new URL("genre/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
-const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
+const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
 const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
-const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: (m.coverImage?.medium || "").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map((l) => l.site), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
+const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map((l) => l.site), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 {
   const svc = {};
