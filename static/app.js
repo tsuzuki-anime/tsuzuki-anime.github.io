@@ -36,8 +36,8 @@
   }
   var REGION = "fr";
   try { REGION = localStorage.getItem("tz-region") || detectRegion(); } catch (e) { REGION = detectRegion(); }
-  function inRegion(name) { var d = W.s[name]; return !!d && d[1].indexOf(REGION) > -1; }
-  function regional(list) { return (list || []).filter(inRegion); }
+  function inRegion(tag) { var p = String(tag).split("~"), d = W.s[p[0]]; return !!d && d[1].indexOf(REGION) > -1 && !(p[1] && p[1].split(",").indexOf(REGION) > -1); }
+  function regional(list) { return (list || []).filter(inRegion).map(function (t) { return String(t).split("~")[0]; }); }
   function chipW(n) { var d = W.s[n]; return '<span class="chip p-' + (d ? d[0] : "other") + '"><i></i>' + esc(n) + "</span>"; }
   function applyRegion() {
     document.querySelectorAll("select[data-region]").forEach(function (s) { s.value = REGION; });
@@ -146,7 +146,7 @@
         var y0 = y ? +y : 0, y1 = y === "2020" ? 9999 : y === "1980" ? 1989 : y0 + 9;
         if (y === "1980") y0 = 0;
         last = idx.filter(function (x) {
-          if (p && (x.w || []).indexOf(p) < 0 && x.p.indexOf(p) < 0) return false;
+          if (p && (x.w || []).map(function (t) { return String(t).split("~")[0]; }).indexOf(p) < 0 && x.p.indexOf(p) < 0) return false;
           if (g && (x.g || []).indexOf(g) < 0) return false;
           if (y && !(x.y >= y0 && x.y <= y1)) return false;
           if (s && x.s !== s) return false;
