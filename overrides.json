@@ -1,0 +1,7 @@
+{
+  "notIn": [
+    { "id": 20832, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord (saison 1) : absent de Crunchyroll en France, signalé le 27/09/2026" },
+    { "id": 20920, "site": "Crunchyroll", "regions": ["fr"], "note": "DanMachi saison 1 : absent de Crunchyroll en France, signalé le 27/09/2026" },
+    { "id": 101167, "site": "Crunchyroll", "regions": ["fr"], "note": "DanMachi saison 2 : absent de Crunchyroll en France, signalé le 27/09/2026" }
+  ]
+}
