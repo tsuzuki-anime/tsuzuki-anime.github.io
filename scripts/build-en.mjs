@@ -2,7 +2,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 export async function buildEn(ctx) {
-  const { data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
+  const { wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const EN = new URL("en/", OUT);
   const R = BASE + "en/"; // absolute root of the English site
@@ -37,7 +37,7 @@ export async function buildEn(ctx) {
   // Platforms present in a region; server default region for the English site is the US
   const regional = (m, r = "us") => worldLinks(m).filter((l) => l.regions.includes(r));
   function chips(m, max = 3) {
-    const w = worldLinks(m).map((l) => l.site);
+    const w = worldLinks(m).map(wTag);
     const us = regional(m).slice(0, max);
     const inner = us.length ? us.map((l) => `<span class="chip p-${l.cls}"><i></i>${esc(l.site)}</span>`).join("") : `<span class="chip muted">Not found yet</span>`;
     return `<span class="chipset" data-w="${esc(w.join("|"))}" data-max="${max}">${inner}</span>`;

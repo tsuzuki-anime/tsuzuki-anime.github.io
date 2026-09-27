@@ -35,6 +35,16 @@ for (const m of [...data.media].sort((a, b) => a.id - b.id)) {
   m.slug = s;
 }
 const byId = new Map(data.media.map((m) => [m.id, m]));
+// Corrections manuelles (overrides.json) : plateformes signalées comme absentes dans certaines régions
+{
+  let ov = { notIn: [] };
+  try { ov = JSON.parse(await readFile(new URL("overrides.json", root), "utf8")); } catch {}
+  for (const o of ov.notIn || []) {
+    const m = byId.get(o.id);
+    if (!m) continue;
+    for (const l of m.externalLinks || []) if (l.site === o.site || (o.site === "Prime Video" && l.site === "Amazon Prime Video") || (o.site === "Disney+" && l.site === "Disney Plus")) l.notIn = [...new Set([...(l.notIn || []), ...o.regions])];
+  }
+}
 const POPULAR = [...data.media].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 // Plateformes disponibles en France et en Belgique (les données AniList sont mondiales)
 const BE_PLATFORMS = {
@@ -50,7 +60,7 @@ const BE_PLATFORMS = {
 const streaming = (m) => {
   const seen = new Set();
   return (m.externalLinks || [])
-    .filter((l) => l.type === "STREAMING" && BE_PLATFORMS[l.site])
+    .filter((l) => l.type === "STREAMING" && BE_PLATFORMS[l.site] && !(l.notIn || []).includes("fr"))
     .map((l) => ({ ...l, raw: l.site, site: BE_PLATFORMS[l.site] }))
     .filter((l) => !seen.has(l.site) && seen.add(l.site));
 };
@@ -163,9 +173,12 @@ const worldLinks = (m) => {
   const seen = new Set();
   return (m.externalLinks || [])
     .filter((l) => l.type === "STREAMING" && SERVICES[l.site])
-    .map((l) => ({ url: l.url, site: SERVICES[l.site][0], cls: SERVICES[l.site][1], regions: SERVICES[l.site][2] }))
+    .map((l) => ({ url: l.url, site: SERVICES[l.site][0], cls: SERVICES[l.site][1], regions: SERVICES[l.site][2].filter((r) => !(l.notIn || []).includes(r)) }))
+    .filter((l) => l.regions.length)
     .filter((l) => !seen.has(l.site) && seen.add(l.site));
 };
+// Nom de plateforme pour le navigateur, avec les régions exclues pour cet animé (ex. "Crunchyroll~fr")
+const wTag = (l) => { const all = Object.values(SERVICES).find(([n]) => n === l.site)?.[2] || []; const ex = all.filter((r) => !l.regions.includes(r)); return ex.length ? `${l.site}~${ex.join(",")}` : l.site; };
 const WORLD_SLUG = (name) => slugify(name.replace("+", " plus"));
 const GENRE_PAGES = Object.entries(GENRE_FR).filter(([g]) => g !== "Ecchi").map(([g, fr]) => ({ g, fr, slug: slugify(fr) }));
 const genreSlug = Object.fromEntries(GENRE_PAGES.map((x) => [x.g, x.slug]));
@@ -269,7 +282,7 @@ ${body}
 
 const PCLASS = { "Crunchyroll": "cr", "Netflix": "nf", "ADN": "adn", "Prime Video": "pv", "Disney+": "dp" };
 function chips(m, max = 4) {
-  const w = worldLinks(m).map((l) => l.site);
+  const w = worldLinks(m).map(wTag);
   return `<span class="chipset" data-w="${esc(w.join("|"))}" data-max="${max}">${chipsFr(m, max)}</span>`;
 }
 function chipsFr(m, max) {
@@ -626,7 +639,7 @@ for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
 const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
 const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
-const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map((l) => l.site), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
+const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map(wTag), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 {
   const svc = {};
@@ -635,7 +648,7 @@ await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 }
 // ---------- Version anglaise ----------
 const { buildEn } = await import("./build-en.mjs");
-const enPaths = await buildEn({ data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
+const enPaths = await buildEn({ wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
 const allPaths = [...pages.filter((p) => p.path !== "404.html").map((p) => p.path), ...enPaths];
 await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${allPaths.map((p) => `<url><loc>${esc(`${SITE}/${p}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
