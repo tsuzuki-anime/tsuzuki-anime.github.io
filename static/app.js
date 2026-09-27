@@ -78,7 +78,7 @@
     if (REGION !== "fr") { var l = regional(x.w).slice(0, 3); return l.length ? l.map(chipW).join("") : '<span class="chip muted">' + T.search + "</span>"; }
     return x.p.length ? x.p.map(chip).join("") : x.f ? '<span class="chip muted">' + T.fr + esc(x.f.join(", ")) + "</span>" : '<span class="chip muted">' + T.search + "</span>"; }
 
-  var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/";
+  var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
   // Index de recherche, chargé une seule fois et seulement quand on en a besoin
   var idxPromise = null;
   function loadIdx(rel) {
