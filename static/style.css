@@ -291,3 +291,4 @@ html[lang="en"] .wrow.me .wr::after{content:" · your region"}
 .fl-cb b{padding-right:44px}
 .fl-bar{display:flex;height:7px;border-radius:99px;overflow:hidden;background:var(--surface2);margin-top:4px}
 .fl-bar i{background:var(--k)}
+.k-unknown{--k:#3A3D5C}
