@@ -16,6 +16,7 @@ const STATUS_FR = { RELEASING: "En cours de diffusion", NOT_YET_RELEASED: "Pas e
 const GENRE_FR = { Action: "Action", Adventure: "Aventure", Comedy: "Comédie", Drama: "Drame", Ecchi: "Ecchi", Fantasy: "Fantasy", Horror: "Horreur", "Mahou Shoujo": "Magical girl", Mecha: "Mecha", Music: "Musique", Mystery: "Mystère", Psychological: "Psychologique", Romance: "Romance", "Sci-Fi": "Science-fiction", "Slice of Life": "Tranche de vie", Sports: "Sport", Supernatural: "Surnaturel", Thriller: "Thriller" };
 const DAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 
+const { fillerPages, fillerHome } = await import("./fillers.mjs");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const slugify = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "anime";
 const nameOf = (m) => m.title.english || m.title.romaji || m.title.native;
@@ -255,6 +256,7 @@ ${adsHead}
       <a href="${rel}calendrier.html">Calendrier</a>
       <a href="${rel}catalogue.html">Catalogue</a>
       <a href="${rel}plateformes.html">Plateformes</a>
+      <a href="${rel}fillers.html">Fillers</a>
       <label class="hreg" title="Ta région : les plateformes affichées s'adaptent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Ta région">${REGIONS.map(([r, , sh]) => `<option value="${r}">${esc(sh)}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Rechercher un animé…" aria-label="Rechercher un animé" autocomplete="off"><div class="hres results" hidden></div></div>
       <a class="lang" href="${BASE}${(enPath || "en/index.html").replace(/index\.html$/, "")}" hreflang="en" lang="en" title="English version">EN</a>
@@ -606,6 +608,7 @@ ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Populaires en ce moment</h2><a href="catalogue.html">Tout le catalogue →</a></div><div class="pgrid">${popular.map((m) => card(m, rel)).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">Par plateforme</h2><a href="plateformes.html">Comparer les plateformes →</a></div><div class="pchips">${platformPages.map((pl) => `<a class="pchip p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><i></i>${esc(pl.site)}<small>${pl.list.length.toLocaleString("fr-FR")}</small></a>`).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">Par genre</h2><a href="genres.html">Tous les genres →</a></div><nav class="genres">${genrePages.map((g) => `<a href="genre/${g.slug}.html">${esc(g.fr)}</a>`).join("")}</nav></section>
+${fillerHome({ lang: "fr", esc })}
 <section class="tonight"><h2 class="sec">Qu'est-ce qu'on regarde ce soir&nbsp;?</h2><p class="sub">Choisis ton humeur, on te trouve un animé.</p>
 <div class="moods" id="moods" role="group" aria-label="Humeur"></div><div class="pick" id="pick"></div>
 <script type="application/json" id="pickdata">${JSON.stringify(pickData).replace(/</g, "\\u003c")}</script></section>`;
@@ -631,7 +634,6 @@ pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "",
 pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: "Page introuvable", desc: "Cette page n'existe pas.", body: `<div class="phead"><h1>Page introuvable</h1></div><p class="lead">Cette page n'existe pas ou plus. <a href="${BASE}index.html">Retour à l'accueil</a></p>` }) });
 
 // ---------- Fillers (épisodes à sauter) ----------
-const { fillerPages } = await import("./fillers.mjs");
 pages.push(...fillerPages({ lang: "fr", page, esc, byId, cover }));
 
 // ---------- Écriture ----------

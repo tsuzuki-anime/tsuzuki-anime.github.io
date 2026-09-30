@@ -4,6 +4,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 export async function buildEn(ctx) {
   const { wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
+  const { fillerPages, fillerHome } = await import("./fillers.mjs");
   const EN = new URL("en/", OUT);
   const R = BASE + "en/"; // absolute root of the English site
   const written = [];
@@ -92,6 +93,7 @@ ${adsHead}
       <a href="${R}calendar.html">Schedule</a>
       <a href="${R}catalog.html">Catalog</a>
       <a href="${R}platforms.html">Platforms</a>
+      <a href="${R}fillers.html">Fillers</a>
       <label class="hreg" title="Your region: platforms shown adapt to it"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Your region">${REGION_IDS.map((r) => `<option value="${r}">${esc(REG[r][1])}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Search an anime…" aria-label="Search an anime" autocomplete="off"><div class="hres results" hidden></div></div>
       <a class="lang" href="${BASE}${(fr || "index.html").replace(/index\.html$/, "")}" hreflang="fr" lang="fr" title="Version française">FR</a>
@@ -372,6 +374,7 @@ ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Popular right now</h2><a href="catalog.html">Full catalog →</a></div><div class="pgrid">${popular.map((m) => card(m, "")).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">By platform</h2><a href="platforms.html">All platforms →</a></div><div class="pchips">${bigFirst.slice(0, 12).map((pl) => `<a class="pchip p-${pl.cls}" href="platform/${pl.slug}.html"><i></i>${esc(pl.name)}<small>${num(pl.list.length)}</small></a>`).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">By genre</h2><a href="genres.html">All genres →</a></div><nav class="genres">${genrePages.map((g) => `<a href="genre/${gSlugEn(g.g)}.html">${esc(GENRE_EN(g.g))}</a>`).join("")}</nav></section>
+${fillerHome({ lang: "en", esc })}
 <section class="tonight"><h2 class="sec">What should I watch tonight?</h2><p class="sub">Pick your mood, we'll find you an anime.</p>
 <div class="moods" id="moods" role="group" aria-label="Mood"></div><div class="pick" id="pick"></div>
 <script type="application/json" id="pickdata">${JSON.stringify(pickData).replace(/</g, "\\u003c")}</script></section>`,
@@ -385,7 +388,6 @@ ${adSlot()}
   await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice is stored only in your own browser.</p><p>We use GoatCounter, a cookie-free analytics tool that counts visits anonymously (page views, country, device type) without tracking individuals.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
 
   // ---------- Filler lists ----------
-  const { fillerPages } = await import("./fillers.mjs");
   for (const p of fillerPages({ lang: "en", page, esc, byId, cover })) await write(p.path, p.html);
 
   return written;
