@@ -8,7 +8,7 @@ export async function buildEn(ctx) {
   const R = BASE + "en/"; // absolute root of the English site
   const written = [];
   const write = async (path, html) => { await writeFile(new URL(path, EN), html); written.push("en/" + path); };
-  for (const d of ["anime", "catalog", "platform", "genre", "season"]) await mkdir(new URL(d + "/", EN), { recursive: true });
+  for (const d of ["anime", "catalog", "platform", "genre", "season", "fillers"]) await mkdir(new URL(d + "/", EN), { recursive: true });
 
   const FORMAT = { TV: "TV series", TV_SHORT: "TV short", MOVIE: "Movie", SPECIAL: "Special", OVA: "OVA", ONA: "Web series (ONA)", MUSIC: "Music video" };
   const STATUS = { RELEASING: "Airing", NOT_YET_RELEASED: "Not yet aired", FINISHED: "Finished", HIATUS: "On hiatus", CANCELLED: "Cancelled" };
@@ -26,6 +26,8 @@ export async function buildEn(ctx) {
     const fixed = { "index.html": "index.html", "calendar.html": "calendrier.html", "catalog.html": "catalogue.html", "platforms.html": "plateformes.html", "genres.html": "genres.html", "about.html": "a-propos.html", "privacy.html": "confidentialite.html", "legal.html": "mentions-legales.html" };
     if (fixed[enPath]) return fixed[enPath];
     let m;
+    if (enPath === "fillers.html") return "fillers.html";
+    if ((m = enPath.match(/^fillers\/(.+)$/))) return "fillers/" + m[1];
     if ((m = enPath.match(/^anime\/(.+)$/))) return "anime/" + m[1];
     if ((m = enPath.match(/^catalog\/(.+)$/))) return "catalogue/" + m[1];
     if ((m = enPath.match(/^platform\/(.+)$/))) return "plateforme/" + m[1];
@@ -105,7 +107,7 @@ ${body}
       <a class="logo" href="${R}"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>The free guide to find where to legally stream any anime, anywhere in the world: USA, Canada, UK, Europe, Latin America, Asia… We don't host any video: we only link to official platforms.</p>
     </div>
-    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
+    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}fillers.html">Filler lists</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
     <div><h3>Information</h3><a href="${R}about.html">About</a><a href="${R}legal.html">Legal notice</a><a href="${R}privacy.html">Privacy</a><a href="${BASE}">Version française</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily · Some links may be affiliate links.</div>
@@ -381,6 +383,10 @@ ${adSlot()}
   await prose("about.html", `About ${cfg.siteName}`, "About", `<p>${esc(cfg.siteName)} helps anime fans everywhere find where to stream their shows legally, and when new episodes come out.</p><p>The site doesn't host or stream any video. It only links to official platforms. Some links may be affiliate links: if you subscribe through them, the site may earn a commission at no extra cost to you.</p><p>Data comes from AniList and is updated automatically every day. Availability varies by country: always check on the platform.</p>`);
   await prose("legal.html", `Legal notice | ${cfg.siteName}`, "Legal notice", `<p>${esc(cfg.siteName)} is an independent project, not affiliated with the streaming platforms mentioned or with the rights holders of the works shown.</p><p>The site is hosted by GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA).</p><p>Titles, information and artwork come from the AniList database and remain the property of their respective owners. They are used only to identify the works and point to their legal distribution. Rights holders can request removal through the project's GitHub page.</p>`);
   await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice is stored only in your own browser.</p><p>We use GoatCounter, a cookie-free analytics tool that counts visits anonymously (page views, country, device type) without tracking individuals.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
+
+  // ---------- Filler lists ----------
+  const { fillerPages } = await import("./fillers.mjs");
+  for (const p of fillerPages({ lang: "en", page, esc, byId, cover })) await write(p.path, p.html);
 
   return written;
 }

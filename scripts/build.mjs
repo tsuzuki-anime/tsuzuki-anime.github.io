@@ -194,6 +194,8 @@ function enPathOf(p) {
   const fixed = { "index.html": "en/index.html", "calendrier.html": "en/calendar.html", "catalogue.html": "en/catalog.html", "plateformes.html": "en/platforms.html", "genres.html": "en/genres.html", "a-propos.html": "en/about.html", "confidentialite.html": "en/privacy.html", "mentions-legales.html": "en/legal.html" };
   if (fixed[p]) return fixed[p];
   let m;
+  if (p === "fillers.html") return "en/fillers.html";
+  if ((m = p.match(/^fillers\/(.+)$/))) return "en/fillers/" + m[1];
   if ((m = p.match(/^anime\/(.+)$/))) return "en/anime/" + m[1];
   if ((m = p.match(/^catalogue\/(.+)$/))) return "en/catalog/" + m[1];
   if ((m = p.match(/^plateforme\/(.+)$/))) return "en/platform/" + m[1];
@@ -268,7 +270,7 @@ ${body}
       <a class="logo" href="${rel}index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>Le guide gratuit pour savoir où regarder tes animés légalement, en France, dans les pays francophones et dans le monde entier (USA, Japon, Asie, Amérique latine…). Nous ne diffusons aucune vidéo : nous renvoyons uniquement vers les plateformes officielles.</p>
     </div>
-    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}plateformes.html">Par plateforme</a><a href="${rel}genres.html">Par genre</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
+    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}plateformes.html">Par plateforme</a><a href="${rel}genres.html">Par genre</a><a href="${rel}fillers.html">Fillers à sauter</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
     <div><h3>Informations</h3><a href="${rel}a-propos.html">À propos</a><a href="${rel}mentions-legales.html">Mentions légales</a><a href="${rel}confidentialite.html">Confidentialité</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure de Paris et Bruxelles (convertis automatiquement si vous êtes ailleurs), mis à jour chaque jour · Certains liens peuvent être affiliés.</div>
@@ -628,6 +630,10 @@ ${cfg.adsenseClient ? `<h2>Publicité</h2><p>Le site affiche des annonces Google
 pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "", title: `À propos de ${cfg.siteName}`, desc: `${cfg.siteName} aide à trouver où regarder légalement ses animés en France et en Belgique.`, body: `<div class="phead"><h1>À propos</h1></div><div class="prose"><p>${esc(cfg.siteName)} aide les fans d'animés francophones à trouver où regarder leurs séries légalement, et à savoir quand sortent les nouveaux épisodes.</p><p>Le site ne diffuse et n'héberge aucune vidéo. Il renvoie uniquement vers les plateformes officielles. Certains liens peuvent être affiliés : si vous vous abonnez via ces liens, le site peut toucher une commission, sans surcoût pour vous.</p><p>Les informations proviennent d'AniList et sont mises à jour automatiquement chaque jour. La disponibilité d'un titre peut varier selon le pays : vérifiez toujours sur la plateforme.</p></div>` }) });
 pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: "Page introuvable", desc: "Cette page n'existe pas.", body: `<div class="phead"><h1>Page introuvable</h1></div><p class="lead">Cette page n'existe pas ou plus. <a href="${BASE}index.html">Retour à l'accueil</a></p>` }) });
 
+// ---------- Fillers (épisodes à sauter) ----------
+const { fillerPages } = await import("./fillers.mjs");
+pages.push(...fillerPages({ lang: "fr", page, esc, byId, cover }));
+
 // ---------- Écriture ----------
 await rm(OUT, { recursive: true, force: true });
 await mkdir(new URL("anime/", OUT), { recursive: true });
@@ -635,6 +641,7 @@ await mkdir(new URL("saison/", OUT), { recursive: true });
 await mkdir(new URL("catalogue/", OUT), { recursive: true });
 await mkdir(new URL("plateforme/", OUT), { recursive: true });
 await mkdir(new URL("genre/", OUT), { recursive: true });
+await mkdir(new URL("fillers/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
 const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
