@@ -660,7 +660,18 @@ const { buildEn } = await import("./build-en.mjs");
 const enPaths = await buildEn({ wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
 const allPaths = [...pages.filter((p) => p.path !== "404.html").map((p) => p.path), ...enPaths];
-await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${allPaths.map((p) => `<url><loc>${esc(`${SITE}/${p}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`).join("\n")}\n</urlset>\n`);
+{
+  // Sitemap découpé en morceaux de 5 000 URL + un index (Google lit mieux les petits fichiers)
+  const urls = allPaths.map((p) => `<url><loc>${esc(`${SITE}/${p}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`);
+  const CHUNK = 5000;
+  const parts = [];
+  for (let i = 0; i < urls.length; i += CHUNK) {
+    const name = `sitemap-${parts.length + 1}.xml`;
+    await writeFile(new URL(name, OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.slice(i, i + CHUNK).join("\n")}\n</urlset>\n`);
+    parts.push(name);
+  }
+  await writeFile(new URL("sitemap.xml", OUT), `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${parts.map((n) => `<sitemap><loc>${SITE}/${n}</loc><lastmod>${today}</lastmod></sitemap>`).join("\n")}\n</sitemapindex>\n`);
+}
 await writeFile(new URL("manifest.webmanifest", OUT), JSON.stringify({ name: `${cfg.siteName} : où regarder tes animés`, short_name: cfg.siteName, start_url: BASE, scope: BASE, display: "standalone", background_color: "#0B0C16", theme_color: "#0B0C16", lang: "fr", icons: [{ src: `${BASE}icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }));
 await writeFile(new URL("robots.txt", OUT), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 console.log(`Site généré : ${pages.length} pages en français + ${enPaths.length} en anglais dans dist/`);
