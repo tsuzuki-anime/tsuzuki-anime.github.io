@@ -2,6 +2,13 @@
   "notIn": [
     { "id": 20832, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord (saison 1) : absent de Crunchyroll en France, signalé le 27/09/2026" },
     { "id": 20920, "site": "Crunchyroll", "regions": ["fr"], "note": "DanMachi saison 1 : absent de Crunchyroll en France, signalé le 27/09/2026" },
-    { "id": 101167, "site": "Crunchyroll", "regions": ["fr"], "note": "DanMachi saison 2 : absent de Crunchyroll en France, signalé le 27/09/2026" }
+    { "id": 101167, "site": "Crunchyroll", "regions": ["fr"], "note": "DanMachi saison 2 : absent de Crunchyroll en France, signalé le 27/09/2026" },
+    { "id": 98437, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord II : absent de Crunchyroll en France, signalé le 02/10/2026" },
+    { "id": 101474, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord III : absent de Crunchyroll en France, signalé le 02/10/2026" },
+    { "id": 133844, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord IV : absent de Crunchyroll en France, signalé le 02/10/2026" },
+    { "id": 133845, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord : The Sacred Kingdom (film) : absent de Crunchyroll en France, signalé le 02/10/2026" },
+    { "id": 98873, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord : The Undead King (film) : absent de Crunchyroll en France, signalé le 02/10/2026" },
+    { "id": 98874, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord : The Dark Hero (film) : absent de Crunchyroll en France, signalé le 02/10/2026" },
+    { "id": 101098, "site": "Crunchyroll", "regions": ["fr"], "note": "Overlord : Ple Ple Pleiades (film) : absent de Crunchyroll en France, signalé le 02/10/2026" }
   ]
 }
