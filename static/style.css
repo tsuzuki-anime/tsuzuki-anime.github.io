@@ -292,3 +292,6 @@ html[lang="en"] .wrow.me .wr::after{content:" · your region"}
 .fl-bar{display:flex;height:7px;border-radius:99px;overflow:hidden;background:var(--surface2);margin-top:4px}
 .fl-bar i{background:var(--k)}
 .k-unknown{--k:#3A3D5C}
+.cal-search{margin:18px 0 14px}
+.cal-search input{font-size:16px;padding:13px 16px 13px 50px;box-shadow:none}
+.cal-none{color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin:0 0 16px}
