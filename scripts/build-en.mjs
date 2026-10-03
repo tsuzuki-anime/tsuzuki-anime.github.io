@@ -208,13 +208,18 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
   }
 
   // ---------- Schedule ----------
-  const epRow = (e, rel) => `<a class="ep" href="${rel}anime/${e.m.slug}.html"><time data-t="${e.airingAt}">${hhmm(e.airingAt)}</time>${poster(e.m, "medium")}<span class="ep-t"><b>${esc(nameOf(e.m))}</b><small>Episode ${e.episode}${e.m.episodes ? ` of ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 2)}</span></a>`;
+  const epRow = (e, rel) => `<a class="ep" href="${rel}anime/${e.m.slug}.html" data-n="${esc([nameOf(e.m), ...altTitles(e.m)].join(" | "))}"><time data-t="${e.airingAt}">${hhmm(e.airingAt)}</time>${poster(e.m, "medium")}<span class="ep-t"><b>${esc(nameOf(e.m))}</b><small>Episode ${e.episode}${e.m.episodes ? ` of ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 2)}</span></a>`;
   const days = dayList.map(([k, d]) => [k, { label: longDate(d.items[0].airingAt), items: d.items }]);
   await write("calendar.html", page({
     path: "calendar.html", rel: "", title: "Anime release schedule this week (simulcasts)", desc: "Every new anime episode this week, day by day, converted to your time zone, with the legal platform to watch it.",
     body: `
 <div class="phead"><p class="eyebrow">Schedule</p><h1>This week's anime releases</h1>
 <p class="lead">New episodes of the week, with the platform to watch them legally. Times are converted to your time zone automatically. Updated daily.</p></div>
+<div class="search cal-search">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+  <input id="calq" type="search" placeholder="Search an anime in this week's releases…" autocomplete="off" aria-label="Search an anime in the schedule">
+</div>
+<p class="cal-none" id="calnone" hidden>No episode of this anime is scheduled this week. If it airs later, it will show up here a few days before release.</p>
 <div class="days" role="tablist" aria-label="Day">${days.map(([k, d], i) => `<button class="day" type="button" role="tab" data-day="${k}" aria-selected="${i === 0}">${esc(d.label)}</button>`).join("")}</div>
 ${days.map(([k, d], i) => `<section class="dayp" data-day="${k}" ${i === 0 ? "" : "hidden"}><h2 class="sec">${esc(d.label)}</h2><div class="eps">${d.items.map((e) => epRow(e, "")).join("")}</div></section>`).join("")}
 ${adSlot()}`,
