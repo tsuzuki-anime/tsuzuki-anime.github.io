@@ -34,13 +34,36 @@
     if (/^(Asia|Australia|Pacific)\//.test(tz)) return "asia";
     return "fr";
   }
-  var REGION = "fr";
-  try { REGION = localStorage.getItem("tz-region") || detectRegion(); } catch (e) { REGION = detectRegion(); }
+  // Pays du visiteur (fuseau horaire puis langue du navigateur), affiché dans le choix de région
+  var TZ_CC = { "Europe/Brussels": "BE", "Europe/Paris": "FR", "Europe/Luxembourg": "LU", "Europe/Zurich": "CH", "Europe/Monaco": "MC", "Europe/Berlin": "DE", "Europe/Vienna": "AT", "Europe/London": "GB", "Europe/Dublin": "IE", "Europe/Madrid": "ES", "Europe/Rome": "IT", "Europe/Amsterdam": "NL", "Europe/Lisbon": "PT", "Europe/Warsaw": "PL", "Europe/Stockholm": "SE", "Europe/Oslo": "NO", "Europe/Copenhagen": "DK", "Europe/Helsinki": "FI", "Europe/Prague": "CZ", "Europe/Athens": "GR", "Europe/Bucharest": "RO", "Europe/Budapest": "HU", "Europe/Istanbul": "TR", "Asia/Tokyo": "JP", "Asia/Shanghai": "CN", "Asia/Seoul": "KR", "Asia/Manila": "PH", "Asia/Jakarta": "ID", "Asia/Kuala_Lumpur": "MY", "Asia/Singapore": "SG", "Asia/Bangkok": "TH", "Asia/Ho_Chi_Minh": "VN", "Asia/Kolkata": "IN", "Asia/Calcutta": "IN", "Asia/Taipei": "TW", "Asia/Hong_Kong": "HK", "Australia/Sydney": "AU", "Australia/Melbourne": "AU", "Pacific/Auckland": "NZ", "America/Sao_Paulo": "BR", "America/Mexico_City": "MX", "America/Argentina/Buenos_Aires": "AR", "America/Buenos_Aires": "AR", "America/Santiago": "CL", "America/Bogota": "CO", "America/Lima": "PE", "America/Toronto": "CA", "America/Vancouver": "CA", "America/Montreal": "CA", "America/Edmonton": "CA", "America/Winnipeg": "CA", "America/Halifax": "CA", "America/New_York": "US", "America/Chicago": "US", "America/Denver": "US", "America/Los_Angeles": "US", "America/Phoenix": "US", "America/Anchorage": "US", "Pacific/Honolulu": "US", "Africa/Dakar": "SN", "Africa/Abidjan": "CI", "Africa/Casablanca": "MA", "Africa/Algiers": "DZ", "Africa/Tunis": "TN", "Africa/Accra": "GH", "Africa/Lagos": "NG", "Africa/Douala": "CM", "Africa/Kinshasa": "CD" };
+  function detectCountry() {
+    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+    if (TZ_CC[tz]) return TZ_CC[tz];
+    var m = /-([A-Z]{2})\b/.exec((navigator.languages && navigator.languages[0]) || navigator.language || "");
+    return m ? m[1] : "";
+  }
+  function countryName(cc) {
+    if (!cc) return "";
+    try { return new Intl.DisplayNames([EN ? "en" : "fr"], { type: "region" }).of(cc) || cc; } catch (e) { return cc; }
+  }
+  var AUTO = detectRegion(), MANUAL = false, REGION = AUTO;
+  try { var saved = localStorage.getItem("tz-region"); if (saved) { REGION = saved; MANUAL = true; } } catch (e) {}
+  var COUNTRY = countryName(detectCountry());
+  // Ajoute « 📍 Ton pays » en tête de chaque sélecteur de région
+  document.querySelectorAll("select[data-region]").forEach(function (s) {
+    if (!COUNTRY || s.querySelector('option[value="auto"]')) return;
+    var o = document.createElement("option");
+    o.value = "auto";
+    o.textContent = "📍 " + COUNTRY;
+    s.insertBefore(o, s.firstChild);
+    var lab = s.closest("label");
+    if (lab) lab.title = (EN ? "Detected: " : "Pays détecté : ") + COUNTRY + (EN ? " (you can change it)" : " (tu peux le changer)");
+  });
   function inRegion(tag) { var p = String(tag).split("~"), d = W.s[p[0]]; return !!d && d[1].indexOf(REGION) > -1 && !(p[1] && p[1].split(",").indexOf(REGION) > -1); }
   function regional(list) { return (list || []).filter(inRegion).map(function (t) { return String(t).split("~")[0]; }); }
   function chipW(n) { var d = W.s[n]; return '<span class="chip p-' + (d ? d[0] : "other") + '"><i></i>' + esc(n) + "</span>"; }
   function applyRegion() {
-    document.querySelectorAll("select[data-region]").forEach(function (s) { s.value = REGION; });
+    document.querySelectorAll("select[data-region]").forEach(function (s) { s.value = (!MANUAL && s.querySelector('option[value="auto"]')) ? "auto" : REGION; });
     document.querySelectorAll(".chipset[data-w]").forEach(function (el) {
       if (el._fr === undefined) el._fr = el.innerHTML;
       if (REGION === BASE_REGION) { el.innerHTML = el._fr; return; }
@@ -68,8 +91,13 @@
   }
   document.querySelectorAll("select[data-region]").forEach(function (s) {
     s.addEventListener("change", function () {
-      REGION = s.value;
-      try { localStorage.setItem("tz-region", REGION); } catch (e) {}
+      if (s.value === "auto") {
+        REGION = AUTO; MANUAL = false;
+        try { localStorage.removeItem("tz-region"); } catch (e) {}
+      } else {
+        REGION = s.value; MANUAL = true;
+        try { localStorage.setItem("tz-region", REGION); } catch (e) {}
+      }
       applyRegion();
     });
   });
