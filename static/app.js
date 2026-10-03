@@ -169,8 +169,36 @@
       tabs.forEach(function (t) { t.setAttribute("aria-selected", t.dataset.day === k ? "true" : "false"); });
       document.querySelectorAll(".dayp").forEach(function (p) { p.hidden = p.dataset.day !== k; });
     };
-    tabs.forEach(function (t) { t.addEventListener("click", function () { show(t.dataset.day); }); });
-    if (document.querySelector('.day[data-day="' + today + '"]')) show(today);
+    var cur = tabs[0].dataset.day;
+    tabs.forEach(function (t) { t.addEventListener("click", function () { cur = t.dataset.day; show(cur); }); });
+    if (document.querySelector('.day[data-day="' + today + '"]')) { cur = today; show(today); }
+    // Recherche dans les sorties de la semaine
+    var calq = document.getElementById("calq");
+    if (calq) {
+      var daysBar = document.querySelector(".days");
+      var none = document.getElementById("calnone");
+      var rows = document.querySelectorAll(".dayp .ep");
+      rows.forEach(function (r) { r._n = norm(r.dataset.n || r.textContent); });
+      var filter = function () {
+        var v = norm(calq.value);
+        if (!v) {
+          rows.forEach(function (r) { r.hidden = false; });
+          if (daysBar) daysBar.hidden = false;
+          none.hidden = true;
+          show(cur);
+          return;
+        }
+        var total = 0;
+        if (daysBar) daysBar.hidden = true;
+        document.querySelectorAll(".dayp").forEach(function (p) {
+          var n = 0;
+          p.querySelectorAll(".ep").forEach(function (r) { var ok = r._n.indexOf(v) !== -1; r.hidden = !ok; if (ok) n++; });
+          p.hidden = n === 0; total += n;
+        });
+        none.hidden = total > 0;
+      };
+      calq.addEventListener("input", filter);
+    }
   }
 
   // Compte à rebours du prochain épisode
