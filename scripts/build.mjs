@@ -423,13 +423,18 @@ for (const s of data.schedule) {
 const todayKey = dayKey(Math.floor(Date.now() / 1000));
 const dayList = [...byDay.entries()].filter(([k]) => k >= todayKey).sort(([a], [b]) => a.localeCompare(b)).slice(0, 8);
 function epRow(e, rel) {
-  return `<a class="ep" href="${rel}anime/${e.m.slug}.html"><time data-t="${e.airingAt}">${hhmm(e.airingAt)}</time>${poster(e.m, "medium")}<span class="ep-t"><b>${esc(nameOf(e.m))}</b><small>Épisode ${e.episode}${e.m.episodes ? ` sur ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 2)}</span></a>`;
+  return `<a class="ep" href="${rel}anime/${e.m.slug}.html" data-n="${esc([nameOf(e.m), ...altTitles(e.m)].join(" | "))}"><time data-t="${e.airingAt}">${hhmm(e.airingAt)}</time>${poster(e.m, "medium")}<span class="ep-t"><b>${esc(nameOf(e.m))}</b><small>Épisode ${e.episode}${e.m.episodes ? ` sur ${e.m.episodes}` : ""}</small></span><span class="chips">${chips(e.m, 2)}</span></a>`;
 }
 {
   const rel = "";
   const body = `
 <div class="phead"><p class="eyebrow">Calendrier</p><h1>Les sorties animés de la semaine</h1>
 <p class="lead">Les nouveaux épisodes de la semaine à l'heure de Paris et Bruxelles, avec la plateforme légale pour les regarder. Mis à jour chaque jour.</p></div>
+<div class="search cal-search">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+  <input id="calq" type="search" placeholder="Chercher un animé dans les sorties de la semaine…" autocomplete="off" aria-label="Chercher un animé dans le calendrier">
+</div>
+<p class="cal-none" id="calnone" hidden>Aucun épisode de cet animé n'est prévu cette semaine. S'il sort plus tard, il apparaîtra ici quelques jours avant sa sortie.</p>
 <div class="days" role="tablist" aria-label="Jour">${dayList.map(([k, d], i) => `<button class="day" type="button" role="tab" data-day="${k}" aria-selected="${i === 0}">${esc(d.label)}</button>`).join("")}</div>
 ${dayList.map(([k, d], i) => `<section class="dayp" data-day="${k}" ${i === 0 ? "" : "hidden"}><h2 class="sec">${esc(d.label[0].toUpperCase() + d.label.slice(1))}</h2><div class="eps">${d.items.map((e) => epRow(e, rel)).join("")}</div></section>`).join("")}
 ${adSlot()}`;
