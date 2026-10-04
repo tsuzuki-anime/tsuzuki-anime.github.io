@@ -229,6 +229,33 @@
     }
   }
 
+  // Mangas : recherche dans la liste (fichier manga-search.json chargé à la première frappe)
+  var mq = document.getElementById("mq");
+  if (mq) {
+    var mres = document.getElementById("mres"), mtop = document.getElementById("mtop"), mdata = null, mload = null;
+    var mget = function () {
+      if (mdata) return Promise.resolve(mdata);
+      if (!mload) mload = fetch(mq.dataset.idx).then(function (r) { return r.json(); }).then(function (d) {
+        d.forEach(function (x) { x._n = norm(x.t); x._a = norm(x.a); });
+        mdata = d; return d;
+      });
+      return mload;
+    };
+    var mcard = function (x) {
+      return '<a class="pcard" href="' + esc(x.u) + '"><span class="poster">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy" decoding="async">' : "<b>" + esc(x.t.slice(0, 1)) + "</b>") + '</span><span class="pc-b"><b>' + esc(x.t) + "</b><small>" + esc(x.k) + '</small><span class="chips">' + x.p.map(function (p) { return '<span class="chip p-other"><i></i>' + esc(p) + "</span>"; }).join("") + "</span></span></a>";
+    };
+    mq.addEventListener("input", function () {
+      var v = norm(mq.value);
+      if (!v) { mres.hidden = true; mres.innerHTML = ""; if (mtop) mtop.hidden = false; return; }
+      mget().then(function (d) {
+        if (norm(mq.value) !== v) return;
+        var hit = d.filter(function (x) { return x._n.indexOf(v) !== -1 || x._a.indexOf(v) !== -1; }).slice(0, 48);
+        mres.hidden = false; if (mtop) mtop.hidden = true;
+        mres.innerHTML = hit.length ? hit.map(mcard).join("") : '<p class="small">' + (EN ? "No manga found. Try another title (English, romaji or Japanese)." : "Aucun manga trouvé. Essaie un autre titre (anglais, romaji ou japonais).") + "</p>";
+      }).catch(function () {});
+    });
+  }
+
   // Compte à rebours du prochain épisode
   var cd = document.querySelector(".countdown[data-at]");
   if (cd) {
