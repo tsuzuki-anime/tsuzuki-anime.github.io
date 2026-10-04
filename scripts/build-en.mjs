@@ -5,11 +5,12 @@ export async function buildEn(ctx) {
   const { wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const { fillerPages, fillerHome } = await import("./fillers.mjs");
+  const { mangaPages, mangaBox, mangaHome } = await import("./mangas.mjs");
   const EN = new URL("en/", OUT);
   const R = BASE + "en/"; // absolute root of the English site
   const written = [];
   const write = async (path, html) => { await writeFile(new URL(path, EN), html); written.push("en/" + path); };
-  for (const d of ["anime", "catalog", "platform", "genre", "season", "fillers"]) await mkdir(new URL(d + "/", EN), { recursive: true });
+  for (const d of ["anime", "catalog", "platform", "genre", "season", "fillers", "manga"]) await mkdir(new URL(d + "/", EN), { recursive: true });
 
   const FORMAT = { TV: "TV series", TV_SHORT: "TV short", MOVIE: "Movie", SPECIAL: "Special", OVA: "OVA", ONA: "Web series (ONA)", MUSIC: "Music video" };
   const STATUS = { RELEASING: "Airing", NOT_YET_RELEASED: "Not yet aired", FINISHED: "Finished", HIATUS: "On hiatus", CANCELLED: "Cancelled" };
@@ -28,6 +29,8 @@ export async function buildEn(ctx) {
     if (fixed[enPath]) return fixed[enPath];
     let m;
     if (enPath === "fillers.html") return "fillers.html";
+    if (enPath === "mangas.html") return "mangas.html";
+    if ((m = enPath.match(/^manga\/(.+)$/))) return "manga/" + m[1];
     if ((m = enPath.match(/^fillers\/(.+)$/))) return "fillers/" + m[1];
     if ((m = enPath.match(/^anime\/(.+)$/))) return "anime/" + m[1];
     if ((m = enPath.match(/^catalog\/(.+)$/))) return "catalogue/" + m[1];
@@ -94,6 +97,7 @@ ${adsHead}
       <a href="${R}catalog.html">Catalog</a>
       <a href="${R}platforms.html">Platforms</a>
       <a href="${R}fillers.html">Fillers</a>
+      <a href="${R}mangas.html">Manga</a>
       <label class="hreg" title="Your region: platforms shown adapt to it"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Your region">${REGION_IDS.map((r) => `<option value="${r}">${esc(REG[r][1])}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Search an anime…" aria-label="Search an anime" autocomplete="off"><div class="hres results" hidden></div></div>
       <a class="lang" href="${BASE}${(fr || "index.html").replace(/index\.html$/, "")}" hreflang="fr" lang="fr" title="Version française">FR</a>
@@ -109,7 +113,7 @@ ${body}
       <a class="logo" href="${R}"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>The free guide to find where to legally stream any anime, anywhere in the world: USA, Canada, UK, Europe, Latin America, Asia… We don't host any video: we only link to official platforms.</p>
     </div>
-    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}fillers.html">Filler lists</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
+    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}fillers.html">Filler lists</a><a href="${R}mangas.html">Where to read manga</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
     <div><h3>Information</h3><a href="${R}about.html">About</a><a href="${R}legal.html">Legal notice</a><a href="${R}privacy.html">Privacy</a><a href="${BASE}">Version française</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily · Some links may be affiliate links.</div>
@@ -192,6 +196,7 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
     <div class="fmain">
       ${nextHtml}
       ${worldHtml}
+      ${mangaBox({ lang: "en", esc, anime: m, rel, slugify })}
       ${adSlot()}
       <section class="box"><h2>About</h2><p>${intro}</p>${genres.length ? `<div class="tags">${genres.map((g) => genreSlug[g] ? `<a href="${rel}genre/${gSlugEn(g)}.html">${esc(GENRE_EN(g))}</a>` : `<span>${esc(GENRE_EN(g))}</span>`).join("")}</div>` : ""}${alts.length ? `<p class="small">Other titles: ${esc(alts.join(", "))}.</p>` : ""}</section>
       <section class="box"><h2>FAQ</h2><dl class="faq">${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl></section>
@@ -380,6 +385,7 @@ ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">By platform</h2><a href="platforms.html">All platforms →</a></div><div class="pchips">${bigFirst.slice(0, 12).map((pl) => `<a class="pchip p-${pl.cls}" href="platform/${pl.slug}.html"><i></i>${esc(pl.name)}<small>${num(pl.list.length)}</small></a>`).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">By genre</h2><a href="genres.html">All genres →</a></div><nav class="genres">${genrePages.map((g) => `<a href="genre/${gSlugEn(g.g)}.html">${esc(GENRE_EN(g.g))}</a>`).join("")}</nav></section>
 ${fillerHome({ lang: "en", esc })}
+${mangaHome({ lang: "en", esc, slugify })}
 <section class="tonight"><h2 class="sec">What should I watch tonight?</h2><p class="sub">Pick your mood, we'll find you an anime.</p>
 <div class="moods" id="moods" role="group" aria-label="Mood"></div><div class="pick" id="pick"></div>
 <script type="application/json" id="pickdata">${JSON.stringify(pickData).replace(/</g, "\\u003c")}</script></section>`,
@@ -394,6 +400,9 @@ ${fillerHome({ lang: "en", esc })}
 
   // ---------- Filler lists ----------
   for (const p of fillerPages({ lang: "en", page, esc, byId, cover })) await write(p.path, p.html);
+
+  // ---------- Manga (where to read legally) ----------
+  for (const p of mangaPages({ lang: "en", page, esc, slugify, poster, cover, animeById: byId, animeCard: card, base: BASE })) await write(p.path, p.html);
 
   return written;
 }
