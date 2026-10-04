@@ -222,3 +222,38 @@ await writeFile(
   JSON.stringify({ fetchedAt: now.toISOString(), current: cur, next: nxt, media: [...media.values()], schedule })
 );
 console.log(`OK : ${media.size} animés enregistrés`);
+
+// ---------- Mangas : où les lire légalement ----------
+// Mangas, manhwas, manhuas et light novels les plus populaires d'AniList qui ont au moins un lien de lecture officiel.
+// En cas de souci, le site animé est quand même généré (la section mangas est simplement ignorée).
+const MANGA_Q = `query ($page: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo { hasNextPage }
+    media(type: MANGA, isAdult: false, sort: POPULARITY_DESC) {
+      id format status chapters volumes genres averageScore popularity countryOfOrigin isAdult
+      title { romaji english native }
+      synonyms
+      coverImage { large medium color }
+      startDate { year }
+      externalLinks { site url type language }
+      relations { edges { relationType node { id type } } }
+    }
+  }
+}`;
+try {
+  const raw = await allPages(MANGA_Q, {}, (p) => p.media, 100);
+  const mangas = [];
+  for (const m of raw) {
+    if (!m || m.isAdult) continue;
+    const links = (m.externalLinks || []).filter((l) => l.url && (l.type === "STREAMING" || l.type === "INFO"));
+    if (!links.some((l) => l.type === "STREAMING")) continue;
+    m.externalLinks = links;
+    m.anime = [...new Set((m.relations?.edges || []).filter((e) => e.node?.type === "ANIME" && e.relationType === "ADAPTATION").map((e) => e.node.id))];
+    delete m.relations;
+    mangas.push(m);
+  }
+  await writeFile(new URL("../data/manga.json", import.meta.url), JSON.stringify({ media: mangas }));
+  console.log(`Mangas : ${mangas.length} avec une plateforme de lecture légale (sur ${raw.length})`);
+} catch (e) {
+  console.log("Mangas ignorés : " + e.message);
+}
