@@ -311,3 +311,6 @@ html[lang="en"] .wrow.me .wr::after{content:" · your region"}
 .mli .pcard{height:100%}
 .mlx{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(11,12,22,.8);color:#fff;font-size:18px;line-height:30px;cursor:pointer}
 .mlx:hover{background:var(--sun);color:#0B0C16}
+.upd{display:flex;align-items:center;gap:7px;margin:14px 0 0;font-size:13px;color:var(--muted)}
+.upd svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex:none}
+#mylist-msg{color:var(--sun);font-weight:700;margin-top:10px}
