@@ -2,7 +2,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 export async function buildEn(ctx) {
-  const { wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
+  const { similarOf, tools, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const { fillerPages, fillerHome } = await import("./fillers.mjs");
   const { mangaPages, mangaBox, mangaHome } = await import("./mangas.mjs");
@@ -25,7 +25,7 @@ export async function buildEn(ctx) {
   const longDate = (t) => new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "long", month: "long", day: "numeric" }).format(new Date(t * 1000));
   const num = (n) => n.toLocaleString("en-US");
   const frPathOf = (enPath) => {
-    const fixed = { "index.html": "index.html", "calendar.html": "calendrier.html", "catalog.html": "catalogue.html", "platforms.html": "plateformes.html", "genres.html": "genres.html", "about.html": "a-propos.html", "privacy.html": "confidentialite.html", "legal.html": "mentions-legales.html" };
+    const fixed = { "index.html": "index.html", "calendar.html": "calendrier.html", "catalog.html": "catalogue.html", "platforms.html": "plateformes.html", "genres.html": "genres.html", "about.html": "a-propos.html", "privacy.html": "confidentialite.html", "my-list.html": "ma-liste.html", "legal.html": "mentions-legales.html" };
     if (fixed[enPath]) return fixed[enPath];
     let m;
     if (enPath === "fillers.html") return "fillers.html";
@@ -98,6 +98,7 @@ ${adsHead}
       <a href="${R}platforms.html">Platforms</a>
       <a href="${R}fillers.html">Fillers</a>
       <a href="${R}mangas.html">Manga</a>
+      <a class="mylist" href="${R}my-list.html" title="My list" aria-label="My list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span class="favc" data-favc hidden></span></a>
       <label class="hreg" title="Your region: platforms shown adapt to it"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Your region">${REGION_IDS.map((r) => `<option value="${r}">${esc(REG[r][1])}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Search an anime…" aria-label="Search an anime" autocomplete="off"><div class="hres results" hidden></div></div>
       <a class="lang" href="${BASE}${(fr || "index.html").replace(/index\.html$/, "")}" hreflang="fr" lang="fr" title="Version française">FR</a>
@@ -113,10 +114,10 @@ ${body}
       <a class="logo" href="${R}"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>The free guide to find where to legally stream any anime, anywhere in the world: USA, Canada, UK, Europe, Latin America, Asia… We don't host any video: we only link to official platforms.</p>
     </div>
-    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}fillers.html">Filler lists</a><a href="${R}mangas.html">Where to read manga</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
+    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}fillers.html">Filler lists</a><a href="${R}mangas.html">Where to read manga</a><a href="${R}my-list.html">My list</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
     <div><h3>Information</h3><a href="${R}about.html">About</a><a href="${R}legal.html">Legal notice</a><a href="${R}privacy.html">Privacy</a><a href="${BASE}">Version française</a></div>
   </div>
-  <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily · Some links may be affiliate links.</div>
+  <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily.</div>
 </footer>
 <script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="${BASE}world.js" defer></script>
@@ -165,11 +166,7 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
       ...(next ? [[`When does the next episode of ${name} come out?`, `Episode ${next.episode} airs on ${longDate(next.airingAt)} at ${hhmm(next.airingAt)} Paris time.`]] : []),
       ...(m.episodes ? [[`How many episodes does ${name} have?`, `${eps}.`]] : []),
     ];
-    const similar = [];
-    for (const o of POPULAR) {
-      if (o.id !== m.id && (o.genres || []).some((g) => genres.includes(g))) similar.push(o);
-      if (similar.length >= 6) break;
-    }
+    const similar = similarOf(m);
     const banner = m.bannerImage || cover(m);
     const body = `
 <article class="fiche">
@@ -189,6 +186,7 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
           ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
         </div>
         ${heroCtas}
+        ${tools(m, name)}
       </div>
     </div>
   </div>
@@ -394,9 +392,11 @@ ${mangaHome({ lang: "en", esc, slugify })}
 
   // ---------- About, legal, privacy ----------
   const prose = (path, title, h1, html) => write(path, page({ path, rel: "", title, desc: `${title}.`, body: `<div class="phead"><h1>${h1}</h1></div><div class="prose">${html}</div>` }));
-  await prose("about.html", `About ${cfg.siteName}`, "About", `<p>${esc(cfg.siteName)} helps anime fans everywhere find where to stream their shows legally, and when new episodes come out.</p><p>The site doesn't host or stream any video. It only links to official platforms. Some links may be affiliate links: if you subscribe through them, the site may earn a commission at no extra cost to you.</p><p>Data comes from AniList and is updated automatically every day. Availability varies by country: always check on the platform.</p>`);
+  await prose("about.html", `About ${cfg.siteName}`, "About", `<p>${esc(cfg.siteName)} helps anime fans everywhere find where to stream their shows legally, and when new episodes come out.</p><p>The site doesn't host or stream any video. It only links to official platforms. The site is free, with no ads and no affiliate links.</p><p>Data comes from AniList and is updated automatically every day. Availability varies by country: always check on the platform.</p>`);
   await prose("legal.html", `Legal notice | ${cfg.siteName}`, "Legal notice", `<p>${esc(cfg.siteName)} is an independent project, not affiliated with the streaming platforms mentioned or with the rights holders of the works shown.</p><p>The site is hosted by GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA).</p><p>Titles, information and artwork come from the AniList database and remain the property of their respective owners. They are used only to identify the works and point to their legal distribution. Rights holders can request removal through the project's GitHub page.</p>`);
-  await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice is stored only in your own browser.</p><p>We use GoatCounter, a cookie-free analytics tool that counts visits anonymously (page views, country, device type) without tracking individuals.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
+  await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice and “My list” are stored only in your own browser and are never sent anywhere.</p><p>We use GoatCounter, a cookie-free analytics tool that counts visits anonymously (page views, country, device type) without tracking individuals.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
+
+  await write("my-list.html", page({ path: "my-list.html", rel: "", title: `My anime list | ${cfg.siteName}`, desc: "The anime you added to your list, to quickly find where to watch them.", body: `<div class="phead"><p class="eyebrow">My list</p><h1>My anime list</h1><p class="lead">Add anime with the ♡ button on their page to find them here. Your list stays in this browser only, no account needed.</p></div><div class="pgrid mylistg" id="mylist" data-rel=""></div><p class="lead" id="mylist-empty" hidden>Your list is empty for now. <a href="catalog.html">Browse the catalog</a> and click “Add to my list” on the anime you like.</p>` }));
 
   // ---------- Filler lists ----------
   for (const p of fillerPages({ lang: "en", page, esc, byId, cover })) await write(p.path, p.html);
