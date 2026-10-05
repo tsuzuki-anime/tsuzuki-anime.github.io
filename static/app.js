@@ -301,3 +301,63 @@
     t.title = EN ? "Your local time (" + paris.format(d) + " in Paris)" : "Heure locale (" + paris.format(d) + " à Paris)";
   });
 })();
+// « Ma liste » (favoris sans compte, gardés dans ce navigateur) et bouton « Partager »
+(function () {
+  var EN = document.documentElement.lang === "en";
+  var L = EN ? { add: "Add to my list", on: "In my list", share: "Share", copied: "Link copied!", rm: "Remove" }
+             : { add: "Ajouter à ma liste", on: "Dans ma liste", share: "Partager", copied: "Lien copié !", rm: "Retirer" };
+  var KEY = "tz-list";
+  function load() { try { var a = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} }
+  function has(a, s) { for (var i = 0; i < a.length; i++) if (a[i].s === s) return i; return -1; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function count() {
+    var n = load().length;
+    document.querySelectorAll("[data-favc]").forEach(function (c) { c.textContent = n > 99 ? "99+" : String(n); c.hidden = !n; });
+  }
+  // Bouton sur les fiches animé
+  document.querySelectorAll("[data-fav]").forEach(function (b) {
+    var s = b.getAttribute("data-fav"), lab = b.querySelector("span");
+    function draw() { var on = has(load(), s) >= 0; b.setAttribute("aria-pressed", on ? "true" : "false"); lab.textContent = on ? L.on : L.add; }
+    b.addEventListener("click", function () {
+      var a = load(), i = has(a, s);
+      if (i >= 0) a.splice(i, 1); else a.unshift({ s: s, t: b.getAttribute("data-t") || s, i: b.getAttribute("data-i") || "" });
+      save(a); draw(); count();
+    });
+    draw();
+  });
+  // Bouton « Partager » : menu de partage du téléphone, sinon copie du lien
+  document.querySelectorAll("[data-share]").forEach(function (b) {
+    var lab = b.querySelector("span"); lab.textContent = L.share;
+    b.addEventListener("click", function () {
+      var url = location.href.split("#")[0], t = b.getAttribute("data-t") || document.title;
+      var done = function () { lab.textContent = L.copied; setTimeout(function () { lab.textContent = L.share; }, 2000); };
+      var fallback = function () {
+        var ta = document.createElement("textarea"); ta.value = url; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (e) {} document.body.removeChild(ta); done();
+      };
+      if (navigator.share) { navigator.share({ title: t, url: url }).catch(function () {}); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, fallback); else fallback();
+    });
+  });
+  // Page « Ma liste »
+  var g = document.getElementById("mylist"), empty = document.getElementById("mylist-empty");
+  function render() {
+    if (!g) return;
+    var a = load(), rel = g.getAttribute("data-rel") || "";
+    g.innerHTML = a.map(function (x) {
+      return '<div class="mli"><a class="pcard" href="' + rel + "anime/" + encodeURIComponent(x.s) + '.html"><span class="poster">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy" decoding="async">' : "<b>" + esc((x.t || "?").slice(0, 1)) + "</b>") + '</span><span class="pc-b"><b>' + esc(x.t) + '</b></span></a><button type="button" class="mlx" data-rm="' + esc(x.s) + '" aria-label="' + L.rm + '" title="' + L.rm + '">×</button></div>';
+    }).join("");
+    if (empty) empty.hidden = a.length > 0;
+  }
+  if (g) {
+    g.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-rm]"); if (!b) return;
+      var a = load(), i = has(a, b.getAttribute("data-rm")); if (i >= 0) { a.splice(i, 1); save(a); }
+      render(); count();
+    });
+    render();
+  }
+  count();
+  window.addEventListener("storage", function (e) { if (e.key === KEY) { count(); render(); } });
+})();
