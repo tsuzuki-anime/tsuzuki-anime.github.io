@@ -304,8 +304,8 @@
 // « Ma liste » (favoris sans compte, gardés dans ce navigateur) et bouton « Partager »
 (function () {
   var EN = document.documentElement.lang === "en";
-  var L = EN ? { add: "Add to my list", on: "In my list", share: "Share", copied: "Link copied!", rm: "Remove" }
-             : { add: "Ajouter à ma liste", on: "Dans ma liste", share: "Partager", copied: "Lien copié !", rm: "Retirer" };
+  var L = EN ? { add: "Add to my list", on: "In my list", share: "Share", copied: "Link copied!", rm: "Remove", shareList: "Share my list", added: function (n) { return n + " anime added to your list."; } }
+             : { add: "Ajouter à ma liste", on: "Dans ma liste", share: "Partager", copied: "Lien copié !", rm: "Retirer", shareList: "Partager ma liste", added: function (n) { return n + " animé" + (n > 1 ? "s ajoutés" : " ajouté") + " à ta liste."; } };
   var KEY = "tz-list";
   function load() { try { var a = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} }
@@ -341,7 +341,7 @@
     });
   });
   // Page « Ma liste »
-  var g = document.getElementById("mylist"), empty = document.getElementById("mylist-empty");
+  var g = document.getElementById("mylist"), empty = document.getElementById("mylist-empty"), sb = document.getElementById("mylist-share"), msg = document.getElementById("mylist-msg");
   function render() {
     if (!g) return;
     var a = load(), rel = g.getAttribute("data-rel") || "";
@@ -349,6 +349,16 @@
       return '<div class="mli"><a class="pcard" href="' + rel + "anime/" + encodeURIComponent(x.s) + '.html"><span class="poster">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy" decoding="async">' : "<b>" + esc((x.t || "?").slice(0, 1)) + "</b>") + '</span><span class="pc-b"><b>' + esc(x.t) + '</b></span></a><button type="button" class="mlx" data-rm="' + esc(x.s) + '" aria-label="' + L.rm + '" title="' + L.rm + '">×</button></div>';
     }).join("");
     if (empty) empty.hidden = a.length > 0;
+    if (sb) sb.hidden = !a.length;
+  }
+  // Copie un lien dans le presse-papiers (avec repli pour les vieux navigateurs)
+  function copyLink(url, lab, txt) {
+    var done = function () { lab.textContent = L.copied; setTimeout(function () { lab.textContent = txt; }, 2000); };
+    var fallback = function () {
+      var ta = document.createElement("textarea"); ta.value = url; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (e) {} document.body.removeChild(ta); done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, fallback); else fallback();
   }
   if (g) {
     g.addEventListener("click", function (e) {
@@ -357,6 +367,32 @@
       render(); count();
     });
     render();
+    // « Partager ma liste » : un lien qui contient les animés de la liste (#l=slug1,slug2…)
+    if (sb) {
+      var sl = sb.querySelector("span"); sl.textContent = L.shareList;
+      sb.addEventListener("click", function () {
+        var url = location.href.split("#")[0] + "#l=" + load().map(function (x) { return encodeURIComponent(x.s); }).join(",");
+        if (navigator.share) { navigator.share({ title: document.title, url: url }).catch(function () {}); return; }
+        copyLink(url, sl, L.shareList);
+      });
+    }
+    // Ouverture d'un lien partagé : on ajoute les animés manquants à la liste
+    var m = location.hash.match(/^#l=(.+)$/);
+    if (m) {
+      var want = m[1].split(",").map(function (x) { try { return decodeURIComponent(x); } catch (e) { return ""; } }).filter(Boolean).slice(0, 500);
+      var IMGP = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
+      fetch(document.documentElement.getAttribute("data-idx") || "search.json").then(function (r) { return r.json(); }).then(function (idx) {
+        var by = {}; idx.forEach(function (x) { by[x.u.replace(/^anime\//, "").replace(/\.html$/, "")] = x; });
+        var a = load(), n = 0;
+        want.forEach(function (s) {
+          var x = by[s]; if (!x || has(a, s) >= 0) return;
+          a.push({ s: s, t: x.t, i: x.i ? (x.i.indexOf("http") === 0 ? x.i : IMGP + x.i) : "" }); n++;
+        });
+        save(a); render(); count();
+        if (msg) { msg.textContent = L.added(n); msg.hidden = false; }
+        try { history.replaceState(null, "", location.pathname); } catch (e) {}
+      }).catch(function () {});
+    }
   }
   count();
   window.addEventListener("storage", function (e) { if (e.key === KEY) { count(); render(); } });
