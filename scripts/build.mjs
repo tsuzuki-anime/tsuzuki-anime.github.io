@@ -348,6 +348,9 @@ function similarOf(m, n = 6) {
   SIM_CACHE.set(m.id, out);
   return out;
 }
+// Date de mise à jour des infos (affichée sur les fiches)
+const UPD = { fr: new Intl.DateTimeFormat("fr-BE", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(new Date()), en: new Intl.DateTimeFormat("en-US", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(new Date()) };
+const updNote = (lang) => `<p class="upd"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>${lang === "en" ? `Info updated automatically on ${UPD.en}.` : `Infos mises à jour automatiquement le ${UPD.fr}.`}</p>`;
 // Boutons « Ma liste » et « Partager » des fiches (le texte est géré par app.js selon la langue)
 const tools = (m, name) => `<div class="tools"><button type="button" class="tbtn" data-fav="${esc(m.slug)}" data-t="${esc(name)}" data-i="${esc(cover(m, "large"))}" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span></span></button><button type="button" class="tbtn" data-share data-t="${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button></div>`;
 
@@ -425,7 +428,7 @@ function animePage(m) {
   <div class="fbody">
     <div class="fmain">
       ${nextHtml}
-      <section class="box frbox"><h2>Plateformes légales en France</h2>${where}${othHtml}${findHtml}</section>
+      <section class="box frbox"><h2>Plateformes légales en France</h2>${where}${othHtml}${findHtml}${updNote("fr")}</section>
       ${mangaBox({ lang: "fr", esc, anime: m, rel, slugify })}
       ${worldHtml}
       ${adSlot()}
@@ -673,7 +676,7 @@ prosePage("confidentialite.html", `Politique de confidentialité | ${cfg.siteNam
 ${cfg.adsenseClient ? `<h2>Publicité</h2><p>Le site affiche des annonces Google AdSense. Google peut utiliser des cookies pour diffuser des annonces adaptées. Vous pouvez gérer vos préférences sur la page « Paramètres des annonces » de Google.</p>` : ""}
 <h2>Vos droits</h2><p>Conformément au RGPD, vous pouvez exercer vos droits auprès des services tiers concernés. Pour toute question, utilisez la page GitHub du projet.</p>`);
 pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "", title: `À propos de ${cfg.siteName}`, desc: `${cfg.siteName} aide à trouver où regarder légalement ses animés en France et en Belgique.`, body: `<div class="phead"><h1>À propos</h1></div><div class="prose"><p>${esc(cfg.siteName)} aide les fans d'animés francophones à trouver où regarder leurs séries légalement, et à savoir quand sortent les nouveaux épisodes.</p><p>Le site ne diffuse et n'héberge aucune vidéo. Il renvoie uniquement vers les plateformes officielles. Le site est gratuit, sans publicité et sans lien affilié.</p><p>Les informations proviennent d'AniList et sont mises à jour automatiquement chaque jour. La disponibilité d'un titre peut varier selon le pays : vérifiez toujours sur la plateforme.</p></div>` }) });
-pages.push({ path: "ma-liste.html", html: page({ path: "ma-liste.html", rel: "", title: `Ma liste d'animés | ${cfg.siteName}`, desc: "Les animés que tu as ajoutés à ta liste, pour retrouver vite où les regarder.", body: `<div class="phead"><p class="eyebrow">Ma liste</p><h1>Ma liste d'animés</h1><p class="lead">Ajoute des animés avec le bouton ♡ sur leur fiche pour les retrouver ici. Ta liste reste uniquement dans ce navigateur, sans compte.</p></div><div class="pgrid mylistg" id="mylist" data-rel=""></div><p class="lead" id="mylist-empty" hidden>Ta liste est vide pour l'instant. <a href="catalogue.html">Parcours le catalogue</a> et clique sur « Ajouter à ma liste » sur les animés qui te plaisent.</p>` }) });
+pages.push({ path: "ma-liste.html", html: page({ path: "ma-liste.html", rel: "", title: `Ma liste d'animés | ${cfg.siteName}`, desc: "Les animés que tu as ajoutés à ta liste, pour retrouver vite où les regarder.", body: `<div class="phead"><p class="eyebrow">Ma liste</p><h1>Ma liste d'animés</h1><p class="lead">Ajoute des animés avec le bouton ♡ sur leur fiche pour les retrouver ici. Ta liste reste uniquement dans ce navigateur, sans compte. Pour la retrouver sur un autre appareil ou l'envoyer à un ami, utilise « Partager ma liste ».</p><div class="tools"><button type="button" class="tbtn" id="mylist-share" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button></div><p class="small" id="mylist-msg" hidden></p></div><div class="pgrid mylistg" id="mylist" data-rel=""></div><p class="lead" id="mylist-empty" hidden>Ta liste est vide pour l'instant. <a href="catalogue.html">Parcours le catalogue</a> et clique sur « Ajouter à ma liste » sur les animés qui te plaisent.</p>` }) });
 pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: "Page introuvable", desc: "Cette page n'existe pas.", body: `<div class="phead"><h1>Page introuvable</h1></div><p class="lead">Cette page n'existe pas ou plus. <a href="${BASE}index.html">Retour à l'accueil</a></p>` }) });
 
 // ---------- Fillers (épisodes à sauter) ----------
@@ -705,7 +708,7 @@ await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchDat
 }
 // ---------- Version anglaise ----------
 const { buildEn } = await import("./build-en.mjs");
-const enPaths = await buildEn({ similarOf, tools, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
+const enPaths = await buildEn({ similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
 const allPaths = [...pages.filter((p) => p.path !== "404.html" && p.path !== "ma-liste.html").map((p) => p.path), ...enPaths.filter((p) => p !== "en/my-list.html")];
 {
