@@ -2,7 +2,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 export async function buildEn(ctx) {
-  const { similarOf, tools, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
+  const { similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const { fillerPages, fillerHome } = await import("./fillers.mjs");
   const { mangaPages, mangaBox, mangaHome } = await import("./mangas.mjs");
@@ -193,7 +193,7 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
   <div class="fbody">
     <div class="fmain">
       ${nextHtml}
-      ${worldHtml}
+      ${worldHtml.replace(/<\/section>$/, `${updNote("en")}</section>`)}
       ${mangaBox({ lang: "en", esc, anime: m, rel, slugify })}
       ${adSlot()}
       <section class="box"><h2>About</h2><p>${intro}</p>${genres.length ? `<div class="tags">${genres.map((g) => genreSlug[g] ? `<a href="${rel}genre/${gSlugEn(g)}.html">${esc(GENRE_EN(g))}</a>` : `<span>${esc(GENRE_EN(g))}</span>`).join("")}</div>` : ""}${alts.length ? `<p class="small">Other titles: ${esc(alts.join(", "))}.</p>` : ""}</section>
@@ -396,7 +396,7 @@ ${mangaHome({ lang: "en", esc, slugify })}
   await prose("legal.html", `Legal notice | ${cfg.siteName}`, "Legal notice", `<p>${esc(cfg.siteName)} is an independent project, not affiliated with the streaming platforms mentioned or with the rights holders of the works shown.</p><p>The site is hosted by GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA).</p><p>Titles, information and artwork come from the AniList database and remain the property of their respective owners. They are used only to identify the works and point to their legal distribution. Rights holders can request removal through the project's GitHub page.</p>`);
   await prose("privacy.html", `Privacy policy | ${cfg.siteName}`, "Privacy policy", `<p>${esc(cfg.siteName)} requires no sign-up and does not directly collect any personal data. Your region choice and “My list” are stored only in your own browser and are never sent anywhere.</p><p>We use GoatCounter, a cookie-free analytics tool that counts visits anonymously (page views, country, device type) without tracking individuals.</p><p>To display the site, your browser contacts third-party services: Google Fonts (fonts) and AniList (anime artwork). They may receive your IP address, as with any website visit.</p>${cfg.adsenseClient ? `<p>The site shows Google AdSense ads. Google may use cookies to serve relevant ads; you can manage this in Google's Ad Settings.</p>` : ""}`);
 
-  await write("my-list.html", page({ path: "my-list.html", rel: "", title: `My anime list | ${cfg.siteName}`, desc: "The anime you added to your list, to quickly find where to watch them.", body: `<div class="phead"><p class="eyebrow">My list</p><h1>My anime list</h1><p class="lead">Add anime with the ♡ button on their page to find them here. Your list stays in this browser only, no account needed.</p></div><div class="pgrid mylistg" id="mylist" data-rel=""></div><p class="lead" id="mylist-empty" hidden>Your list is empty for now. <a href="catalog.html">Browse the catalog</a> and click “Add to my list” on the anime you like.</p>` }));
+  await write("my-list.html", page({ path: "my-list.html", rel: "", title: `My anime list | ${cfg.siteName}`, desc: "The anime you added to your list, to quickly find where to watch them.", body: `<div class="phead"><p class="eyebrow">My list</p><h1>My anime list</h1><p class="lead">Add anime with the ♡ button on their page to find them here. Your list stays in this browser only, no account needed. To open it on another device or send it to a friend, use “Share my list”.</p><div class="tools"><button type="button" class="tbtn" id="mylist-share" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button></div><p class="small" id="mylist-msg" hidden></p></div><div class="pgrid mylistg" id="mylist" data-rel=""></div><p class="lead" id="mylist-empty" hidden>Your list is empty for now. <a href="catalog.html">Browse the catalog</a> and click “Add to my list” on the anime you like.</p>` }));
 
   // ---------- Filler lists ----------
   for (const p of fillerPages({ lang: "en", page, esc, byId, cover })) await write(p.path, p.html);
