@@ -295,3 +295,19 @@ html[lang="en"] .wrow.me .wr::after{content:" · your region"}
 .cal-search{margin:18px 0 14px}
 .cal-search input{font-size:16px;padding:13px 16px 13px 50px;box-shadow:none}
 .cal-none{color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin:0 0 16px}
+/* Ma liste + Partager */
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.tbtn{display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:14px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.25);border-radius:12px;padding:9px 14px;cursor:pointer}
+.tbtn:hover{border-color:var(--sun);color:var(--sun)}
+.tbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.tbtn[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:#0B0C16}
+.tbtn[aria-pressed="true"] svg{fill:currentColor}
+.top nav a.mylist{position:relative;display:inline-flex;align-items:center;padding:7px 8px;margin-left:4px}
+.top nav a.mylist svg{width:20px;height:20px;fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.top nav a.mylist:hover svg{stroke:var(--sun)}
+.favc{position:absolute;top:0;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--sun);color:#0B0C16;font-size:10px;font-weight:800;line-height:16px;text-align:center}
+@media (max-width:860px){.top nav>a.mylist{display:inline-flex}}
+.mli{position:relative}
+.mli .pcard{height:100%}
+.mlx{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(11,12,22,.8);color:#fff;font-size:18px;line-height:30px;cursor:pointer}
+.mlx:hover{background:var(--sun);color:#0B0C16}
