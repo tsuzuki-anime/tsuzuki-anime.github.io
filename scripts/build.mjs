@@ -725,4 +725,14 @@ const allPaths = [...pages.filter((p) => p.path !== "404.html" && p.path !== "ma
 }
 await writeFile(new URL("manifest.webmanifest", OUT), JSON.stringify({ name: `${cfg.siteName} : où regarder tes animés`, short_name: cfg.siteName, start_url: BASE, scope: BASE, display: "standalone", background_color: "#0B0C16", theme_color: "#0B0C16", lang: "fr", icons: [{ src: `${BASE}icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png" }, { src: `${BASE}icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }));
 await writeFile(new URL("robots.txt", OUT), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
+{
+  // IndexNow : prévient Bing (et d'autres moteurs) chaque jour des pages mises à jour
+  const KEY = "8ede6006e0e78610b58513934ad018ef";
+  await writeFile(new URL(`${KEY}.txt`, OUT), KEY);
+  const known = new Set(allPaths);
+  const hubs = ["index.html", "calendrier.html", "catalogue.html", "fillers.html", "plateformes.html", "en/index.html", "en/calendar.html", "en/catalog.html", "en/fillers.html", "en/platforms.html"];
+  const airing = [...new Set(data.schedule.map((s) => byId.get(s.id)?.slug).filter(Boolean))].flatMap((s) => [`anime/${s}.html`, `en/anime/${s}.html`]);
+  const urlList = [...new Set([...hubs, ...airing])].filter((p) => known.has(p)).slice(0, 10000).map((p) => `${SITE}/${p}`.replace(/index\.html$/, ""));
+  await writeFile(new URL("indexnow.json", OUT), JSON.stringify({ host: new URL(SITE).host, key: KEY, keyLocation: `${SITE}/${KEY}.txt`, urlList }));
+}
 console.log(`Site généré : ${pages.length} pages en français + ${enPaths.length} en anglais dans dist/`);
