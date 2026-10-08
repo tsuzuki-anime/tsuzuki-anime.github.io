@@ -41,3 +41,9 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Prévenir Bing (IndexNow)
+        continue-on-error: true
+        run: |
+          sleep 60
+          curl -sf https://tsuzuki-anime.github.io/indexnow.json -o indexnow.json
+          curl -s -o /dev/null -w "IndexNow : %{http_code}\n" -X POST https://api.indexnow.org/indexnow -H "Content-Type: application/json; charset=utf-8" --data-binary @indexnow.json
