@@ -375,9 +375,10 @@ ${adSlot()}`,
     </div>
     <div class="results" id="results" aria-live="polite"></div>
     <ul class="stats"><li><b>${num(data.media.length)}</b> anime</li><li><b>${num(nPlat)}</b> with a legal platform</li><li><b>${num(allPlat.length)}</b> platforms worldwide</li></ul>
+    <p style="margin:16px 0 0"><button class="btn" type="button" id="rnd">🎲 Surprise me</button></p>
   </div>
 </section>
-${firstDay ? `<section><div class="sec-h"><h2 class="sec">Today's releases</h2><a href="calendar.html">Full week →</a></div><p class="sub">${esc(firstDay[1].label)}, in your time zone.</p><div class="eps">${firstDay[1].items.slice(0, 8).map((e) => epRow(e, "")).join("")}</div></section>` : ""}
+${firstDay ? `<section><div class="sec-h"><h2 class="sec">Today's releases</h2><a href="calendar.html">Full week →</a></div><p class="sub" data-tdl>${esc(firstDay[1].label)}, in your time zone.</p><div class="eps" data-today>${[...firstDay[1].items.map((e, i) => [e, i < 8]), ...(days[1] ? days[1][1].items.map((e) => [e, false]) : [])].map(([e, v]) => v ? epRow(e, "") : epRow(e, "").replace('<a class="ep"', '<a hidden class="ep"')).join("")}</div></section>` : ""}
 ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Popular right now</h2><a href="catalog.html">Full catalog →</a></div><div class="pgrid">${popular.map((m) => card(m, "")).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">By platform</h2><a href="platforms.html">All platforms →</a></div><div class="pchips">${bigFirst.slice(0, 12).map((pl) => `<a class="pchip p-${pl.cls}" href="platform/${pl.slug}.html"><i></i>${esc(pl.name)}<small>${num(pl.list.length)}</small></a>`).join("")}</div></section>
