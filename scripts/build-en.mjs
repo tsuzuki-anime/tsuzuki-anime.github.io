@@ -153,7 +153,7 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
 <h3 class="h3">${wl.length ? "Check elsewhere" : "Search where to watch it"}</h3><div class="findl">${searchLinks(m).map(([n, u]) => `<a class="btn ghost" href="${esc(u)}" rel="noopener nofollow" target="_blank">${esc(n)}</a>`).join("")}</div></section>`;
 
     const nextHtml = next
-      ? `<div class="next"><span class="k">Next episode</span><span class="t">Episode ${next.episode}</span><span>${esc(longDate(next.airingAt))} at <time data-t="${next.airingAt}">${hhmm(next.airingAt)}</time> (Paris time)</span><span class="countdown" data-at="${next.airingAt}"></span></div>`
+      ? `<div class="next"><span class="k">Next episode</span><span class="t">Episode ${next.episode}</span><span><time data-d="${next.airingAt}">${esc(longDate(next.airingAt))}</time> at <time data-t="${next.airingAt}">${hhmm(next.airingAt)}</time> <span data-tzl>(Paris time)</span></span><span class="countdown" data-at="${next.airingAt}"></span></div>`
       : "";
     const intro = [
       `<strong>${esc(name)}</strong> is ${m.format === "MOVIE" ? "an anime movie" : "an anime"}${studio ? ` produced by studio ${esc(studio)}` : ""}${seasonTxt ? `, from the ${esc(seasonTxt)} season` : ""}.`,
