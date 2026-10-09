@@ -702,6 +702,8 @@ const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
 const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map(wTag), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchData()));
+// Prochains épisodes (pour « Ma liste ») : { slug: [épisode, date] }
+await writeFile(new URL("airing.json", OUT), JSON.stringify(Object.fromEntries(data.media.filter((m) => m.nextAiringEpisode?.airingAt > Date.now() / 1000).map((m) => [m.slug, [m.nextAiringEpisode.episode, m.nextAiringEpisode.airingAt]]))));
 {
   const svc = {};
   for (const [name, cls, regions] of Object.values(SERVICES)) svc[name] = [cls, regions];
