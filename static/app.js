@@ -406,12 +406,14 @@
     });
   });
   // Page « Ma liste »
+  var AIR = null, NXF = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   var g = document.getElementById("mylist"), empty = document.getElementById("mylist-empty"), sb = document.getElementById("mylist-share"), msg = document.getElementById("mylist-msg");
   function render() {
     if (!g) return;
     var a = load(), rel = g.getAttribute("data-rel") || "";
     g.innerHTML = a.map(function (x) {
-      return '<div class="mli"><a class="pcard" href="' + rel + "anime/" + encodeURIComponent(x.s) + '.html"><span class="poster">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy" decoding="async">' : "<b>" + esc((x.t || "?").slice(0, 1)) + "</b>") + '</span><span class="pc-b"><b>' + esc(x.t) + '</b></span></a><button type="button" class="mlx" data-rm="' + esc(x.s) + '" aria-label="' + L.rm + '" title="' + L.rm + '">×</button></div>';
+      var nx = AIR && AIR[x.s], nt = nx ? '<small style="color:var(--sun);font-weight:600">' + (EN ? "Ep " : "Épisode ") + nx[0] + " · " + esc(NXF.format(new Date(nx[1] * 1000))) + "</small>" : "";
+      return '<div class="mli"><a class="pcard" href="' + rel + "anime/" + encodeURIComponent(x.s) + '.html"><span class="poster">' + (x.i ? '<img src="' + esc(x.i) + '" alt="" loading="lazy" decoding="async">' : "<b>" + esc((x.t || "?").slice(0, 1)) + "</b>") + '</span><span class="pc-b"><b>' + esc(x.t) + "</b>" + nt + '</span></a><button type="button" class="mlx" data-rm="' + esc(x.s) + '" aria-label="' + L.rm + '" title="' + L.rm + '">×</button></div>';
     }).join("");
     if (empty) empty.hidden = a.length > 0;
     if (sb) sb.hidden = !a.length;
@@ -432,6 +434,8 @@
       render(); count();
     });
     render();
+    // Prochain épisode de chaque animé en cours de diffusion
+    fetch((document.documentElement.getAttribute("data-idx") || "search.json").replace("search.json", "airing.json")).then(function (r) { return r.json(); }).then(function (d) { AIR = d; render(); }).catch(function () {});
     // « Partager ma liste » : un lien qui contient les animés de la liste (#l=slug1,slug2…)
     if (sb) {
       var sl = sb.querySelector("span"); sl.textContent = L.shareList;
