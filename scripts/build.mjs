@@ -646,9 +646,10 @@ ${adSlot()}`;
     </div>
     <div class="results" id="results" aria-live="polite"></div>
     <ul class="stats"><li><b>${data.media.length.toLocaleString("fr-BE")}</b> animés</li><li><b>${nPlat.toLocaleString("fr-BE")}</b> avec une plateforme légale</li><li><b>Chaque jour</b> mis à jour</li></ul>
+    <p style="margin:16px 0 0"><button class="btn" type="button" id="rnd">🎲 Surprends-moi</button></p>
   </div>
 </section>
-${firstDay ? `<section><div class="sec-h"><h2 class="sec">Les sorties du jour</h2><a href="calendrier.html">Toute la semaine →</a></div><p class="sub">${esc(firstDay[1].label[0].toUpperCase() + firstDay[1].label.slice(1))}, à l'heure de Paris et Bruxelles.</p><div class="eps">${firstDay[1].items.slice(0, 8).map((e) => epRow(e, rel)).join("")}</div></section>` : ""}
+${firstDay ? `<section><div class="sec-h"><h2 class="sec">Les sorties du jour</h2><a href="calendrier.html">Toute la semaine →</a></div><p class="sub" data-tdl>${esc(firstDay[1].label[0].toUpperCase() + firstDay[1].label.slice(1))}, à l'heure de Paris et Bruxelles.</p><div class="eps" data-today>${[...firstDay[1].items.map((e, i) => [e, i < 8]), ...(dayList[1] ? dayList[1][1].items.map((e) => [e, false]) : [])].map(([e, v]) => v ? epRow(e, rel) : epRow(e, rel).replace('<a class="ep"', '<a hidden class="ep"')).join("")}</div></section>` : ""}
 ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Populaires en ce moment</h2><a href="catalogue.html">Tout le catalogue →</a></div><div class="pgrid">${popular.map((m) => card(m, rel)).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">Par plateforme</h2><a href="plateformes.html">Comparer les plateformes →</a></div><div class="pchips">${platformPages.map((pl) => `<a class="pchip p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><i></i>${esc(pl.site)}<small>${pl.list.length.toLocaleString("fr-FR")}</small></a>`).join("")}</div></section>
