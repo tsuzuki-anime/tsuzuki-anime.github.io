@@ -189,10 +189,48 @@
     more.addEventListener("click", function () { shown += 48; draw(); });
   }
 
+  // Calendrier : jours recalculés dans le fuseau horaire du visiteur (hors Paris/Bruxelles)
+  (function () {
+    var bar = document.querySelector(".days"), secs = document.querySelectorAll(".dayp");
+    if (!bar || !secs.length) return;
+    var tz; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return; }
+    if (!tz || tz === "Europe/Brussels" || tz === "Europe/Paris") return;
+    var EN = document.documentElement.lang === "en";
+    var key = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+    var lab = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
+    var todayK = key.format(new Date()), groups = {}, order = [];
+    secs.forEach(function (s) {
+      s.querySelectorAll(".ep").forEach(function (r) {
+        var t = r.querySelector("time[data-t]"); if (!t) return;
+        var d = new Date(+t.dataset.t * 1000), k = key.format(d);
+        if (k < todayK) return;
+        if (!groups[k]) { groups[k] = { l: lab.format(d), r: [] }; order.push(k); }
+        groups[k].r.push(r);
+      });
+    });
+    if (!order.length) return;
+    order.sort();
+    var cap = function (x) { return x.charAt(0).toUpperCase() + x.slice(1); };
+    var parent = secs[0].parentNode, anchor = secs[secs.length - 1].nextSibling;
+    bar.innerHTML = "";
+    secs.forEach(function (s) { s.remove(); });
+    order.forEach(function (k, i) {
+      var b = document.createElement("button");
+      b.className = "day"; b.type = "button"; b.setAttribute("role", "tab"); b.dataset.day = k;
+      b.setAttribute("aria-selected", i === 0 ? "true" : "false"); b.textContent = groups[k].l;
+      bar.appendChild(b);
+      var s = document.createElement("section"), h = document.createElement("h2"), e = document.createElement("div");
+      s.className = "dayp"; s.dataset.day = k; s.hidden = i !== 0;
+      h.className = "sec"; h.textContent = cap(groups[k].l); e.className = "eps";
+      groups[k].r.forEach(function (r) { e.appendChild(r); });
+      s.appendChild(h); s.appendChild(e); parent.insertBefore(s, anchor);
+    });
+  })();
+
   // Calendrier : onglets par jour, aujourd'hui par défaut
   var tabs = document.querySelectorAll(".day[data-day]");
   if (tabs.length) {
-    var today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    var today = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     var show = function (k) {
       tabs.forEach(function (t) { t.setAttribute("aria-selected", t.dataset.day === k ? "true" : "false"); });
       document.querySelectorAll(".dayp").forEach(function (p) { p.hidden = p.dataset.day !== k; });
