@@ -157,6 +157,17 @@
     bindSearch(q, R, "", 8);
     if (location.hash === "#q") q.focus();
   }
+  // « Surprends-moi » : un animé au hasard, avec une plateforme légale dans la région du visiteur
+  var rnd = document.getElementById("rnd");
+  if (rnd) rnd.addEventListener("click", function () {
+    loadIdx("").then(function (idx) {
+      var top = idx.slice(0, 3000);
+      var pool = top.filter(function (x) { return regional(x.w).length; });
+      if (!pool.length) pool = top.filter(function (x) { return x.p && x.p.length; });
+      var x = pool[Math.floor(Math.random() * pool.length)];
+      if (x) location.href = x.u;
+    });
+  });
 
   // Filtres du catalogue
   var fOut = document.getElementById("f-out");
@@ -341,6 +352,19 @@
   var day = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
   document.querySelectorAll("time[data-d]").forEach(function (t) { t.textContent = day.format(new Date(+t.dataset.d * 1000)); });
   document.querySelectorAll("[data-tzl]").forEach(function (s) { s.textContent = EN ? "(your local time)" : "(heure locale)"; });
+  // Accueil : « Les sorties du jour » selon le jour du visiteur
+  var box = document.querySelector("[data-today]");
+  if (box) {
+    var key = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+    var todayK = key.format(now), mine = [];
+    box.querySelectorAll(".ep").forEach(function (r) {
+      var t = r.querySelector("time[data-t]");
+      if (t && mine.length < 8 && key.format(new Date(+t.dataset.t * 1000)) === todayK) mine.push(r);
+    });
+    var lbl = document.querySelector("[data-tdl]"), dl = day.format(now);
+    if (mine.length) box.querySelectorAll(".ep").forEach(function (r) { r.hidden = mine.indexOf(r) < 0; });
+    if (lbl && mine.length) lbl.textContent = dl.charAt(0).toUpperCase() + dl.slice(1) + (EN ? ", in your time zone." : ", à ton heure locale.");
+  }
 })();
 // « Ma liste » (favoris sans compte, gardés dans ce navigateur) et bouton « Partager »
 (function () {
