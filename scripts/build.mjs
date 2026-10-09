@@ -391,7 +391,7 @@ function animePage(m) {
   const findHtml = `<h3 class="h3">${links.length ? "Vérifier ailleurs" : "Chercher où le regarder"}</h3><div class="findl">${searchLinks(m).map(([n, u]) => `<a class="btn ghost" href="${esc(u)}" rel="noopener nofollow" target="_blank">${esc(n)}</a>`).join("")}</div>`;
 
   const nextHtml = next
-    ? `<div class="next"><span class="k">Prochain épisode</span><span class="t">Épisode ${next.episode}</span><span>${esc(longDate(next.airingAt))} à ${hhmm(next.airingAt)} (heure de Paris)</span><span class="countdown" data-at="${next.airingAt}"></span></div>`
+    ? `<div class="next"><span class="k">Prochain épisode</span><span class="t">Épisode ${next.episode}</span><span><time data-d="${next.airingAt}">${esc(longDate(next.airingAt))}</time> à <time data-t="${next.airingAt}">${hhmm(next.airingAt)}</time> <span data-tzl>(heure de Paris)</span></span><span class="countdown" data-at="${next.airingAt}"></span></div>`
     : "";
 
   const faq = [
