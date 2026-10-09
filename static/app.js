@@ -300,6 +300,9 @@
     t.textContent = local.format(d);
     t.title = EN ? "Your local time (" + paris.format(d) + " in Paris)" : "Heure locale (" + paris.format(d) + " à Paris)";
   });
+  var day = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
+  document.querySelectorAll("time[data-d]").forEach(function (t) { t.textContent = day.format(new Date(+t.dataset.d * 1000)); });
+  document.querySelectorAll("[data-tzl]").forEach(function (s) { s.textContent = EN ? "(your local time)" : "(heure locale)"; });
 })();
 // « Ma liste » (favoris sans compte, gardés dans ce navigateur) et bouton « Partager »
 (function () {
