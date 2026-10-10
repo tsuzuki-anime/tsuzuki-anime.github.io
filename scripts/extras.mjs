@@ -144,7 +144,8 @@ export function extrasData({ data, byId, nameOf, slugify }) {
         for (const [y, ks] of cand) {
           const o = byId.get(y), w = [word(o), String(nameOf(o)).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)[0]];
           const list = [...ks].sort((a, b) => a - b);
-          owner.set(y, list.find((k) => w.some((v) => v && cw[k].has(v))) ?? list[0]);
+          const near = (v, u) => v === u || (v.length >= 4 && u.length >= 4 && (v.startsWith(u) || u.startsWith(v)));
+          owner.set(y, list.find((k) => w.some((v) => v && [...cw[k]].some((u) => u && near(v, u)))) ?? list[0]);
         }
         layer = [...cand.keys()];
       }
@@ -156,9 +157,14 @@ export function extrasData({ data, byId, nameOf, slugify }) {
       const series = core.filter((x) => ["TV", "TV_SHORT", "ONA"].includes(x.format) && x.status !== "NOT_YET_RELEASED").sort((a, b) => dated(a) - dated(b));
       const root = series[0] || [...core].sort((a, b) => dated(a) - dated(b))[0];
       const main = comp(sadj, root.id, 400);
+      // Un court-métrage (1-2 épisodes) relié à la série principale mais sans mot en commun avec son titre = bonus
+      const STOP = new Set(["the", "and", "of", "no", "to", "wa", "ga", "season", "movie", "film", "part", "special", "2nd", "3rd"]);
+      const words = (x) => [x.title?.romaji, x.title?.english].filter(Boolean).join(" ").toLowerCase().split(/[^a-z0-9]+/).filter((v) => v.length >= 3 && !STOP.has(v));
+      const rootW = new Set(words(root));
+      const related = (x) => x === root || (x.episodes || 0) > 2 || words(x).some((v) => rootW.has(v));
       const items = [...grp].sort((a, b) => dated(a) - dated(b) || a.id - b.id).map((x) => ({
         m: x,
-        kind: x.status === "NOT_YET_RELEASED" ? "up" : RECAP.test([x.title?.romaji, x.title?.english].join(" ")) ? "rec" : main.has(x.id) && MAINF.includes(x.format) ? "ess" : "opt",
+        kind: x.status === "NOT_YET_RELEASED" ? "up" : RECAP.test([x.title?.romaji, x.title?.english].join(" ")) ? "rec" : main.has(x.id) && MAINF.includes(x.format) && related(x) ? "ess" : "opt",
       }));
       if (items.filter((i) => i.kind !== "rec" && i.kind !== "up").length < 3) return;
       const name = nameOf(root).replace(/\s*(:\s*)?(Season 1|1st Season|Part 1)$/i, "").trim();
