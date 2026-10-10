@@ -25,7 +25,7 @@ async function gql(query, variables, tries = 6) {
 }
 
 const MEDIA_FIELDS = `
-  id siteUrl format status episodes duration genres averageScore popularity isAdult
+  id siteUrl format status episodes duration genres averageScore popularity trending isAdult
   season seasonYear countryOfOrigin
   title { romaji english native }
   synonyms
