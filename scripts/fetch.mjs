@@ -86,6 +86,9 @@ const add = (m, tag) => {
   if (!m || m.isAdult) return;
   if (m.relations) {
     m.rel = [...new Set((m.relations.edges || []).filter((e) => e.node?.type === "ANIME" && REL_TYPES.has(e.relationType)).map((e) => e.node.id))];
+    // Suites et préquelles (pour « Suite annoncée » et la durée de toute la série)
+    const ofType = (t) => [...new Set((m.relations.edges || []).filter((e) => e.node?.type === "ANIME" && e.relationType === t).map((e) => e.node.id))];
+    m.seq = ofType("SEQUEL"); m.pre = ofType("PREQUEL");
     delete m.relations;
   }
   const prev = media.get(m.id);
