@@ -462,7 +462,7 @@
       var a = load();
       if (!SIDX || !window.TZR || a.length < 2) { subsBox.hidden = true; return; }
       var c = {};
-      a.forEach(function (x) { var e = SIDX[x.s]; if (!e) return; window.TZR(e.w).forEach(function (p) { c[p] = (c[p] || 0) + 1; }); });
+      a.forEach(function (x) { var e = SIDX[x.s]; if (!e) return; window.TZR(e.w).forEach(function (p) { if (p !== "YouTube") c[p] = (c[p] || 0) + 1; }); });
       var top = Object.keys(c).sort(function (p, q) { return c[q] - c[p]; });
       if (!top.length) { subsBox.hidden = true; return; }
       subsBox.textContent = "📺 " + L.subs(top[0], c[top[0]], a.length) + (top[1] ? " · " + top.slice(1, 3).map(function (p) { return p + " " + c[p] + "/" + a.length; }).join(" · ") : "");
