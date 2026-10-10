@@ -18,6 +18,7 @@ const DAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dima
 
 const { fillerPages, fillerHome } = await import("./fillers.mjs");
 const { mangaPages, mangaBox, mangaHome, mangaSearchData } = await import("./mangas.mjs");
+const { extrasData, loadNew, extrasPages, studioHref, guideLine, trendStrip } = await import("./extras.mjs");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const slugify = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "anime";
 const nameOf = (m) => m.title.english || m.title.romaji || m.title.native;
@@ -198,6 +199,11 @@ function enPathOf(p) {
   let m;
   if (p === "fillers.html") return "en/fillers.html";
   if (p === "mangas.html") return "en/mangas.html";
+  if (p === "studios.html") return "en/studios.html";
+  if (p === "ordre-de-visionnage.html") return "en/watch-order.html";
+  if (p === "nouveautes.html") return "en/new-on-streaming.html";
+  if ((m = p.match(/^studio\/(.+)$/))) return "en/studio/" + m[1];
+  if ((m = p.match(/^ordre\/(.+)$/))) return "en/watch-order/" + m[1];
   if ((m = p.match(/^manga\/(.+)$/))) return "en/manga/" + m[1];
   if ((m = p.match(/^fillers\/(.+)$/))) return "en/fillers/" + m[1];
   if ((m = p.match(/^anime\/(.+)$/))) return "en/anime/" + m[1];
@@ -277,7 +283,7 @@ ${body}
       <a class="logo" href="${rel}index.html"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>Le guide gratuit pour savoir où regarder tes animés légalement, en France, dans les pays francophones et dans le monde entier (USA, Japon, Asie, Amérique latine…). Nous ne diffusons aucune vidéo : nous renvoyons uniquement vers les plateformes officielles.</p>
     </div>
-    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}plateformes.html">Par plateforme</a><a href="${rel}genres.html">Par genre</a><a href="${rel}fillers.html">Fillers à sauter</a><a href="${rel}mangas.html">Où lire les mangas</a><a href="${rel}ma-liste.html">Ma liste</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
+    <div><h3>Explorer</h3><a href="${rel}calendrier.html">Calendrier des sorties</a><a href="${rel}catalogue.html">Tous les animés</a><a href="${rel}plateformes.html">Par plateforme</a><a href="${rel}genres.html">Par genre</a><a href="${rel}studios.html">Par studio</a><a href="${rel}ordre-de-visionnage.html">Ordres de visionnage</a><a href="${rel}nouveautes.html">Nouveautés plateformes</a><a href="${rel}fillers.html">Fillers à sauter</a><a href="${rel}mangas.html">Où lire les mangas</a><a href="${rel}ma-liste.html">Ma liste</a><a href="${rel}${seasonPath(data.current)}">Saison ${esc(seasonLabel(data.current))}</a><a href="${rel}${seasonPath(data.next)}">Saison ${esc(seasonLabel(data.next))}</a></div>
     <div><h3>Informations</h3><a href="${rel}a-propos.html">À propos</a><a href="${rel}mentions-legales.html">Mentions légales</a><a href="${rel}confidentialite.html">Confidentialité</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure de Paris et Bruxelles (convertis automatiquement si vous êtes ailleurs), mis à jour chaque jour.</div>
@@ -393,6 +399,10 @@ const updNote = (lang) => `<p class="upd"><svg viewBox="0 0 24 24" aria-hidden="
 // Boutons « Ma liste » et « Partager » des fiches (le texte est géré par app.js selon la langue)
 const tools = (m, name) => `<div class="tools"><button type="button" class="tbtn" data-fav="${esc(m.slug)}" data-t="${esc(name)}" data-i="${esc(cover(m, "large"))}" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span></span></button><button type="button" class="tbtn" data-share data-t="${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button>${m.nextAiringEpisode ? `<button type="button" class="tbtn" data-ics="${m.nextAiringEpisode.airingAt}" data-ep="${m.nextAiringEpisode.episode}" data-tot="${m.episodes || ""}" data-dur="${m.duration || 24}" data-s="${esc(m.slug)}" data-t="${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button>` : ""}</div>`;
 
+// Studios, ordres de visionnage, tendances et nouveautés (voir extras.mjs)
+const X = extrasData({ data, byId, nameOf, slugify });
+const news = await loadNew({ data, worldLinks, SITE, TZ });
+
 // ---------- Fiches animé ----------
 const pages = [];
 function animePage(m) {
@@ -457,10 +467,11 @@ function animePage(m) {
           ${m.status ? `<span class="fact">${esc(STATUS_FR[m.status] || m.status)}</span>` : ""}
           ${m.episodes ? `<span class="fact">${m.episodes} épisode${m.episodes > 1 ? "s" : ""}</span>` : ""}
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1).replace(".", ",")}/10</span>` : ""}
-          ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
+          ${studio ? (studioHref(X, studio, "fr", rel) ? `<a class="fact" href="${studioHref(X, studio, "fr", rel)}">${esc(studio)}</a>` : `<span class="fact">${esc(studio)}</span>`) : ""}
           ${watchFact(m, "fr")}
         </div>
         ${(() => { const s = sequelOf(m); if (!s) return ""; const when = s.season && s.seasonYear ? `${SEASON_FR[s.season]} ${s.seasonYear}` : s.startDate?.year ? String(s.startDate.year) : ""; return `<p class="small">📢 Suite annoncée : <a href="${esc(s.slug)}.html">${esc(nameOf(s))}</a>${when ? `, prévue pour ${esc(when)}` : ", date à venir"}.</p>`; })()}
+        ${guideLine(X, m, "fr", rel, esc)}
         ${links.length ? `<div class="ctas">${links.map((l) => `<a class="cta p-${PCLASS[l.site]}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>Regarder sur ${esc(l.site)}</a>`).join("")}${trailer ? `<a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a>` : ""}</div>` : `<p class="nolink">Aucune plateforme légale annoncée pour l'instant.</p>${trailer ? `<div class="ctas"><a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a></div>` : ""}`}
         ${tools(m, name)}
       </div>
@@ -691,6 +702,7 @@ ${adSlot()}`;
   </div>
 </section>
 ${firstDay ? `<section><div class="sec-h"><h2 class="sec">Les sorties du jour</h2><a href="calendrier.html">Toute la semaine →</a></div><p class="sub" data-tdl>${esc(firstDay[1].label[0].toUpperCase() + firstDay[1].label.slice(1))}, à l'heure de Paris et Bruxelles.</p><div class="eps" data-today>${[...firstDay[1].items.map((e, i) => [e, i < 8]), ...(dayList[1] ? dayList[1][1].items.map((e) => [e, false]) : [])].map(([e, v]) => v ? epRow(e, rel) : epRow(e, rel).replace('<a class="ep"', '<a hidden class="ep"')).join("")}</div></section>` : ""}
+${trendStrip(X, "fr", rel, { esc, nameOf, poster })}
 ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Populaires en ce moment</h2><a href="catalogue.html">Tout le catalogue →</a></div><div class="pgrid">${popular.map((m) => card(m, rel)).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">Par plateforme</h2><a href="plateformes.html">Comparer les plateformes →</a></div><div class="pchips">${platformPages.map((pl) => `<a class="pchip p-${PCLASS[pl.site]}" href="plateforme/${pl.slug}.html"><i></i>${esc(pl.site)}<small>${pl.list.length.toLocaleString("fr-FR")}</small></a>`).join("")}</div></section>
@@ -727,6 +739,9 @@ pages.push(...fillerPages({ lang: "fr", page, esc, byId, cover }));
 // ---------- Mangas (où les lire légalement) ----------
 pages.push(...mangaPages({ lang: "fr", page, esc, slugify, poster, cover, animeById: byId, animeCard: card, base: BASE }));
 
+// ---------- Studios, ordres de visionnage, nouveautés ----------
+pages.push(...extrasPages({ lang: "fr", X, news, data, page, esc, card, poster, cover, nameOf, chipFor: (m) => chips(m, 2), TZ }));
+
 // ---------- Écriture ----------
 await rm(OUT, { recursive: true, force: true });
 await mkdir(new URL("anime/", OUT), { recursive: true });
@@ -736,6 +751,8 @@ await mkdir(new URL("plateforme/", OUT), { recursive: true });
 await mkdir(new URL("genre/", OUT), { recursive: true });
 await mkdir(new URL("fillers/", OUT), { recursive: true });
 await mkdir(new URL("manga/", OUT), { recursive: true });
+await mkdir(new URL("studio/", OUT), { recursive: true });
+await mkdir(new URL("ordre/", OUT), { recursive: true });
 for (const p of pages) await writeFile(new URL(p.path, OUT), p.html);
 await cp(new URL("static/", root), OUT, { recursive: true });
 const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
@@ -743,6 +760,9 @@ const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
 const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map(wTag), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchData()));
+// Nouveautés : état des plateformes et journal des arrivées (relus au prochain build)
+await writeFile(new URL("streaming-state.json", OUT), JSON.stringify(news.state));
+await writeFile(new URL("new-log.json", OUT), JSON.stringify(news.log));
 // Prochains épisodes (pour « Ma liste ») : { slug: [épisode, date] }
 await writeFile(new URL("airing.json", OUT), JSON.stringify(Object.fromEntries(data.media.filter((m) => m.nextAiringEpisode?.airingAt > Date.now() / 1000).map((m) => [m.slug, [m.nextAiringEpisode.episode, m.nextAiringEpisode.airingAt]]))));
 {
@@ -752,7 +772,7 @@ await writeFile(new URL("airing.json", OUT), JSON.stringify(Object.fromEntries(d
 }
 // ---------- Version anglaise ----------
 const { buildEn } = await import("./build-en.mjs");
-const enPaths = await buildEn({ sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
+const enPaths = await buildEn({ X, news, extrasPages, studioHref, guideLine, trendStrip, sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
 const allPaths = [...pages.filter((p) => p.path !== "404.html" && p.path !== "ma-liste.html").map((p) => p.path), ...enPaths.filter((p) => p !== "en/my-list.html")];
 {
@@ -774,7 +794,7 @@ await writeFile(new URL("robots.txt", OUT), `User-agent: *\nAllow: /\nSitemap: $
   const KEY = "8ede6006e0e78610b58513934ad018ef";
   await writeFile(new URL(`${KEY}.txt`, OUT), KEY);
   const known = new Set(allPaths);
-  const hubs = ["index.html", "calendrier.html", "catalogue.html", "fillers.html", "plateformes.html", "en/index.html", "en/calendar.html", "en/catalog.html", "en/fillers.html", "en/platforms.html"];
+  const hubs = ["index.html", "calendrier.html", "catalogue.html", "fillers.html", "plateformes.html", "en/index.html", "en/calendar.html", "en/catalog.html", "en/fillers.html", "en/platforms.html", "nouveautes.html", "en/new-on-streaming.html", "ordre-de-visionnage.html", "en/watch-order.html", "studios.html", "en/studios.html"];
   const airing = [...new Set(data.schedule.map((s) => byId.get(s.id)?.slug).filter(Boolean))].flatMap((s) => [`anime/${s}.html`, `en/anime/${s}.html`]);
   const urlList = [...new Set([...hubs, ...airing])].filter((p) => known.has(p)).slice(0, 10000).map((p) => `${SITE}/${p}`.replace(/index\.html$/, ""));
   await writeFile(new URL("indexnow.json", OUT), JSON.stringify({ host: new URL(SITE).host, key: KEY, keyLocation: `${SITE}/${KEY}.txt`, urlList }));
