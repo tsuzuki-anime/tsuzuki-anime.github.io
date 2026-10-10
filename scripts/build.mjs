@@ -262,7 +262,7 @@ ${adsHead}
       <a href="${rel}fillers.html">Fillers</a>
       <a href="${rel}mangas.html">Mangas</a>
       <a class="mylist" href="${rel}ma-liste.html" title="Ma liste" aria-label="Ma liste"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span class="favc" data-favc hidden></span></a>
-      <label class="hreg" title="Ta région : les plateformes affichées s'adaptent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Ta région">${REGIONS.map(([r, , sh]) => `<option value="${r}">${esc(sh)}</option>`).join("")}</select></label>
+      <label class="hreg" title="Région de streaming : les catalogues changent selon le pays, les plateformes affichées s'adaptent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Ta région">${REGIONS.map(([r, , sh]) => `<option value="${r}">${esc(sh)}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Rechercher un animé…" aria-label="Rechercher un animé" autocomplete="off"><div class="hres results" hidden></div></div>
       <a class="lang" href="${BASE}${(enPath || "en/index.html").replace(/index\.html$/, "")}" hreflang="en" lang="en" title="English version">EN</a>
     </nav>
@@ -321,6 +321,19 @@ function card(m, rel) {
 const simKey = (m) => (m.title?.romaji || nameOf(m)).toLowerCase().replace(/[^a-z0-9 ]+/g, " ").trim().split(/\s+/).slice(0, 2).join(" ");
 const SIM_POOL = POPULAR.slice(0, 4000).map((o, i) => ({ o, i, g: o.genres || [], key: simKey(o), ok: streaming(o).length + others(o).length > 0 }));
 const SIM_CACHE = new Map();
+// Suite annoncée (pas encore sortie) et temps pour tout regarder
+function sequelOf(m) {
+  for (const e of m.relations?.edges || []) {
+    if (e.relationType !== "SEQUEL") continue;
+    const s = byId.get(e.node?.id);
+    if (s && s.status === "NOT_YET_RELEASED") return s;
+  }
+  return null;
+}
+function watchHours(m) {
+  const n = m.episodes || (m.nextAiringEpisode ? m.nextAiringEpisode.episode - 1 : 0);
+  return n > 0 && m.duration ? Math.round((n * m.duration) / 60) : 0;
+}
 function similarOf(m, n = 6) {
   if (SIM_CACHE.has(m.id)) return SIM_CACHE.get(m.id);
   const g = new Set(m.genres || []);
@@ -352,7 +365,7 @@ function similarOf(m, n = 6) {
 const UPD = { fr: new Intl.DateTimeFormat("fr-BE", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(new Date()), en: new Intl.DateTimeFormat("en-US", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(new Date()) };
 const updNote = (lang) => `<p class="upd"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>${lang === "en" ? `Info updated automatically on ${UPD.en}.` : `Infos mises à jour automatiquement le ${UPD.fr}.`}</p>`;
 // Boutons « Ma liste » et « Partager » des fiches (le texte est géré par app.js selon la langue)
-const tools = (m, name) => `<div class="tools"><button type="button" class="tbtn" data-fav="${esc(m.slug)}" data-t="${esc(name)}" data-i="${esc(cover(m, "large"))}" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span></span></button><button type="button" class="tbtn" data-share data-t="${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button></div>`;
+const tools = (m, name) => `<div class="tools"><button type="button" class="tbtn" data-fav="${esc(m.slug)}" data-t="${esc(name)}" data-i="${esc(cover(m, "large"))}" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span></span></button><button type="button" class="tbtn" data-share data-t="${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button>${m.nextAiringEpisode ? `<button type="button" class="tbtn" data-ics="${m.nextAiringEpisode.airingAt}" data-ep="${m.nextAiringEpisode.episode}" data-tot="${m.episodes || ""}" data-dur="${m.duration || 24}" data-s="${esc(m.slug)}" data-t="${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button>` : ""}</div>`;
 
 // ---------- Fiches animé ----------
 const pages = [];
@@ -419,7 +432,9 @@ function animePage(m) {
           ${m.episodes ? `<span class="fact">${m.episodes} épisode${m.episodes > 1 ? "s" : ""}</span>` : ""}
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1).replace(".", ",")}/10</span>` : ""}
           ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
+          ${watchHours(m) >= 2 ? `<span class="fact" title="Durée totale de visionnage">⏱ ${watchHours(m).toLocaleString("fr-BE")} h pour tout voir</span>` : ""}
         </div>
+        ${(() => { const s = sequelOf(m); if (!s) return ""; const when = s.season && s.seasonYear ? `${SEASON_FR[s.season]} ${s.seasonYear}` : s.startDate?.year ? String(s.startDate.year) : ""; return `<p class="small">📢 Suite annoncée : <a href="${esc(s.slug)}.html">${esc(nameOf(s))}</a>${when ? `, prévue pour ${esc(when)}` : ", date à venir"}.</p>`; })()}
         ${links.length ? `<div class="ctas">${links.map((l) => `<a class="cta p-${PCLASS[l.site]}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>Regarder sur ${esc(l.site)}</a>`).join("")}${trailer ? `<a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a>` : ""}</div>` : `<p class="nolink">Aucune plateforme légale annoncée pour l'instant.</p>${trailer ? `<div class="ctas"><a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a></div>` : ""}`}
         ${tools(m, name)}
       </div>
@@ -676,7 +691,7 @@ prosePage("confidentialite.html", `Politique de confidentialité | ${cfg.siteNam
 <h2>Services tiers</h2><p>Pour afficher le site, votre navigateur contacte des services tiers : Google Fonts (polices d'écriture) et AniList (affiches des animés). Ces services peuvent recevoir votre adresse IP, comme pour toute visite d'un site web.</p>
 ${cfg.adsenseClient ? `<h2>Publicité</h2><p>Le site affiche des annonces Google AdSense. Google peut utiliser des cookies pour diffuser des annonces adaptées. Vous pouvez gérer vos préférences sur la page « Paramètres des annonces » de Google.</p>` : ""}
 <h2>Vos droits</h2><p>Conformément au RGPD, vous pouvez exercer vos droits auprès des services tiers concernés. Pour toute question, utilisez la page GitHub du projet.</p>`);
-pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "", title: `À propos de ${cfg.siteName}`, desc: `${cfg.siteName} aide à trouver où regarder légalement ses animés en France et en Belgique.`, body: `<div class="phead"><h1>À propos</h1></div><div class="prose"><p>${esc(cfg.siteName)} aide les fans d'animés francophones à trouver où regarder leurs séries légalement, et à savoir quand sortent les nouveaux épisodes.</p><p>Le site ne diffuse et n'héberge aucune vidéo. Il renvoie uniquement vers les plateformes officielles. Le site est gratuit, sans publicité et sans lien affilié.</p><p>Les informations proviennent d'AniList et sont mises à jour automatiquement chaque jour. La disponibilité d'un titre peut varier selon le pays : vérifiez toujours sur la plateforme.</p></div>` }) });
+pages.push({ path: "a-propos.html", html: page({ path: "a-propos.html", rel: "", title: `À propos de ${cfg.siteName}`, desc: `${cfg.siteName} aide à trouver où regarder légalement ses animés, en France, en Belgique et partout dans le monde.`, body: `<div class="phead"><h1>À propos</h1></div><div class="prose"><p>${esc(cfg.siteName)} aide les fans d'animés du monde entier à trouver où regarder leurs séries légalement dans leur pays, et à savoir quand sortent les nouveaux épisodes.</p><p>Le site ne diffuse et n'héberge aucune vidéo. Il renvoie uniquement vers les plateformes officielles. Le site est gratuit, sans publicité et sans lien affilié.</p><p>Les informations proviennent d'AniList et sont mises à jour automatiquement chaque jour. La disponibilité d'un titre peut varier selon le pays : vérifiez toujours sur la plateforme.</p></div>` }) });
 pages.push({ path: "ma-liste.html", html: page({ path: "ma-liste.html", rel: "", title: `Ma liste d'animés | ${cfg.siteName}`, desc: "Les animés que tu as ajoutés à ta liste, pour retrouver vite où les regarder.", body: `<div class="phead"><p class="eyebrow">Ma liste</p><h1>Ma liste d'animés</h1><p class="lead">Ajoute des animés avec le bouton ♡ sur leur fiche pour les retrouver ici. Ta liste reste uniquement dans ce navigateur, sans compte. Pour la retrouver sur un autre appareil ou l'envoyer à un ami, utilise « Partager ma liste ».</p><div class="tools"><button type="button" class="tbtn" id="mylist-share" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.3M8.3 13.2l7.4 4.3"/></svg><span></span></button></div><p class="small" id="mylist-msg" hidden></p></div><div class="pgrid mylistg" id="mylist" data-rel=""></div><p class="lead" id="mylist-empty" hidden>Ta liste est vide pour l'instant. <a href="catalogue.html">Parcours le catalogue</a> et clique sur « Ajouter à ma liste » sur les animés qui te plaisent.</p>` }) });
 pages.push({ path: "404.html", html: page({ path: "404.html", rel: BASE, title: "Page introuvable", desc: "Cette page n'existe pas.", body: `<div class="phead"><h1>Page introuvable</h1></div><p class="lead">Cette page n'existe pas ou plus. <a href="${BASE}index.html">Retour à l'accueil</a></p>` }) });
 
@@ -711,7 +726,7 @@ await writeFile(new URL("airing.json", OUT), JSON.stringify(Object.fromEntries(d
 }
 // ---------- Version anglaise ----------
 const { buildEn } = await import("./build-en.mjs");
-const enPaths = await buildEn({ similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
+const enPaths = await buildEn({ sequelOf, watchHours, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
 const allPaths = [...pages.filter((p) => p.path !== "404.html" && p.path !== "ma-liste.html").map((p) => p.path), ...enPaths.filter((p) => p !== "en/my-list.html")];
 {
