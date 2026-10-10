@@ -111,24 +111,60 @@ export function extrasData({ data, byId, nameOf, slugify }) {
     return seen;
   };
   const done = new Set(), guides = [], usedG = new Set();
+  const dated = (x) => dateKey(x.startDate);
+  const MAINF = ["TV", "TV_SHORT", "ONA", "MOVIE"];
   for (const m of [...data.media].sort(byPop)) {
     if (done.has(m.id) || !adj.has(m.id)) continue;
-    const ids = comp(adj, m.id, 61);
+    const ids = comp(adj, m.id, 2000);
     ids.forEach((id) => done.add(id));
     const all = [...ids].map((id) => byId.get(id)).filter((x) => x && x.format !== "MUSIC");
-    if (all.length < 4 || all.length > 60) continue;
-    const dated = (x) => dateKey(x.startDate);
-    const series = all.filter((x) => ["TV", "TV_SHORT", "ONA"].includes(x.format) && x.status !== "NOT_YET_RELEASED").sort((a, b) => dated(a) - dated(b));
-    const root = series[0] || [...all].sort((a, b) => dated(a) - dated(b))[0];
-    const main = comp(sadj, root.id, 200);
-    const items = all.sort((a, b) => dated(a) - dated(b) || a.id - b.id).map((x) => ({
-      m: x,
-      kind: x.status === "NOT_YET_RELEASED" ? "up" : RECAP.test([x.title?.romaji, x.title?.english].join(" ")) ? "rec" : main.has(x.id) && ["TV", "TV_SHORT", "ONA", "MOVIE"].includes(x.format) ? "ess" : "opt",
-    }));
-    if (items.filter((i) => i.kind !== "rec" && i.kind !== "up").length < 3) continue;
-    const name = nameOf(root).replace(/\s*(:\s*)?(Season 1|1st Season|Part 1)$/i, "").trim();
-    let sl = slugify(name); while (usedG.has(sl)) sl += "-2"; usedG.add(sl);
-    guides.push({ name, slug: sl, root, items, pop: Math.max(...all.map(pop)), mins: items.filter((i) => i.kind === "ess").reduce((a, i) => a + ((i.m.episodes || (i.m.nextAiringEpisode ? i.m.nextAiringEpisode.episode - 1 : 0)) * (i.m.duration || 0)), 0) });
+    if (all.length < 4) continue;
+    // Une franchise peut contenir plusieurs séries reliées par un crossover : chaque suite de saisons (suite / préquelle)
+    // devient son propre guide, et les films / OVA / spéciaux vont avec la série la plus proche.
+    const inAll = new Set(all.map((x) => x.id));
+    const chainOf = new Map(), chains = [];
+    for (const x of [...all].sort(byPop)) {
+      if (chainOf.has(x.id) || !MAINF.includes(x.format)) continue;
+      const c = [...comp(sadj, x.id, 400)].filter((id) => inAll.has(id) && MAINF.includes(byId.get(id).format));
+      if (c.length < 2) continue;
+      const k = chains.length; chains.push(c); c.forEach((id) => chainOf.set(id, k));
+    }
+    let groups;
+    if (!chains.length) groups = [all];
+    else {
+      // Rattache chaque autre œuvre à la série la plus proche (parcours en largeur depuis toutes les séries)
+      // (à égalité de distance : la série dont le titre commence pareil, sinon la plus populaire)
+      const word = (x) => String(x?.title?.romaji || nameOf(x) || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)[0] || "";
+      const cw = chains.map((c) => new Set(c.flatMap((id) => [word(byId.get(id)), String(nameOf(byId.get(id))).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)[0]])));
+      const owner = new Map(chainOf);
+      let layer = [...chainOf.keys()];
+      while (layer.length) {
+        const cand = new Map();
+        for (const x of layer) for (const y of adj.get(x) || []) if (inAll.has(y) && !owner.has(y)) { if (!cand.has(y)) cand.set(y, new Set()); cand.get(y).add(owner.get(x)); }
+        for (const [y, ks] of cand) {
+          const o = byId.get(y), w = [word(o), String(nameOf(o)).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)[0]];
+          const list = [...ks].sort((a, b) => a - b);
+          owner.set(y, list.find((k) => w.some((v) => v && cw[k].has(v))) ?? list[0]);
+        }
+        layer = [...cand.keys()];
+      }
+      groups = chains.map((_, k) => all.filter((x) => owner.get(x.id) === k));
+    }
+    groups.forEach((grp, k) => {
+      if (grp.length < 4 || grp.length > 90) return;
+      const core = chains.length ? grp.filter((x) => chainOf.get(x.id) === k) : grp;
+      const series = core.filter((x) => ["TV", "TV_SHORT", "ONA"].includes(x.format) && x.status !== "NOT_YET_RELEASED").sort((a, b) => dated(a) - dated(b));
+      const root = series[0] || [...core].sort((a, b) => dated(a) - dated(b))[0];
+      const main = comp(sadj, root.id, 400);
+      const items = [...grp].sort((a, b) => dated(a) - dated(b) || a.id - b.id).map((x) => ({
+        m: x,
+        kind: x.status === "NOT_YET_RELEASED" ? "up" : RECAP.test([x.title?.romaji, x.title?.english].join(" ")) ? "rec" : main.has(x.id) && MAINF.includes(x.format) ? "ess" : "opt",
+      }));
+      if (items.filter((i) => i.kind !== "rec" && i.kind !== "up").length < 3) return;
+      const name = nameOf(root).replace(/\s*(:\s*)?(Season 1|1st Season|Part 1)$/i, "").trim();
+      let sl = slugify(name); while (usedG.has(sl)) sl += "-2"; usedG.add(sl);
+      guides.push({ name, slug: sl, root, items, pop: Math.max(...grp.map(pop)), mins: items.filter((i) => i.kind === "ess").reduce((a, i) => a + ((i.m.episodes || (i.m.nextAiringEpisode ? i.m.nextAiringEpisode.episode - 1 : 0)) * (i.m.duration || 0)), 0) });
+    });
   }
   guides.sort((a, b) => b.pop - a.pop);
   guides.length = Math.min(guides.length, 220);
