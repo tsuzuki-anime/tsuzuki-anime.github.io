@@ -2,7 +2,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 export async function buildEn(ctx) {
-  const { sequelOf, watchHours, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
+  const { sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const { fillerPages, fillerHome } = await import("./fillers.mjs");
   const { mangaPages, mangaBox, mangaHome } = await import("./mangas.mjs");
@@ -184,7 +184,7 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
           ${eps ? `<span class="fact">${eps}</span>` : ""}
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1)}/10</span>` : ""}
           ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
-          ${watchHours(m) >= 2 ? `<span class="fact" title="Total watch time">⏱ ${watchHours(m).toLocaleString("en-US")} h to watch it all</span>` : ""}
+          ${watchFact(m, "en")}
         </div>
         ${(() => { const s = sequelOf(m); if (!s) return ""; const when = s.season && s.seasonYear ? `${SEASON[s.season]} ${s.seasonYear}` : s.startDate?.year ? String(s.startDate.year) : ""; return `<p class="small">📢 Sequel announced: <a href="${esc(s.slug)}.html">${esc(nameOf(s))}</a>${when ? `, expected ${esc(when)}` : ", date TBA"}.</p>`; })()}
         ${heroCtas}
