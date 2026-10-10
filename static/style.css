@@ -314,3 +314,21 @@ html[lang="en"] .wrow.me .wr::after{content:" · your region"}
 .upd{display:flex;align-items:center;gap:7px;margin:14px 0 0;font-size:13px;color:var(--muted)}
 .upd svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex:none}
 #mylist-msg{color:var(--sun);font-weight:700;margin-top:10px}
+/* Tendances de la semaine */
+.trend{display:grid;grid-auto-flow:column;grid-auto-columns:112px;gap:14px;overflow-x:auto;list-style:none;margin:0;padding:2px 2px 12px;scroll-snap-type:x proximity}
+.trend li{scroll-snap-align:start}
+.trend a{display:grid;grid-template-columns:30px 1fr;align-items:end;gap:4px 2px;color:var(--ink);text-decoration:none}
+.trend .tn{font-family:var(--display);font-weight:800;font-size:44px;line-height:.8;color:transparent;-webkit-text-stroke:1.5px var(--sun)}
+.trend .poster{border-radius:8px}
+.trend b{grid-column:1/-1;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.trend a:hover b{color:var(--sun)}
+/* Ordre de visionnage */
+.row.wo{grid-template-columns:26px 40px 1fr auto}
+.won{font-family:var(--display);font-weight:800;font-size:18px;color:var(--faint);text-align:center}
+.wob{display:inline-block;margin-top:4px;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--surface2);color:var(--muted)}
+.wob.k-ess{background:rgba(255,200,87,.14);color:var(--sun)}
+.wob.k-rec{color:var(--faint)}
+.wob.k-up{background:rgba(142,162,255,.14);color:var(--blue)}
+a.fact{color:inherit;text-decoration:none}
+a.fact:hover{border-color:var(--sun);color:var(--sun)}
+@media (max-width:600px){.row.wo{grid-template-columns:26px 40px 1fr}.row.wo .chips{grid-column:3}}
