@@ -2,7 +2,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 export async function buildEn(ctx) {
-  const { sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
+  const { X, news, extrasPages, studioHref, guideLine, trendStrip, sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const { fillerPages, fillerHome } = await import("./fillers.mjs");
   const { mangaPages, mangaBox, mangaHome } = await import("./mangas.mjs");
@@ -10,7 +10,7 @@ export async function buildEn(ctx) {
   const R = BASE + "en/"; // absolute root of the English site
   const written = [];
   const write = async (path, html) => { await writeFile(new URL(path, EN), html); written.push("en/" + path); };
-  for (const d of ["anime", "catalog", "platform", "genre", "season", "fillers", "manga"]) await mkdir(new URL(d + "/", EN), { recursive: true });
+  for (const d of ["anime", "catalog", "platform", "genre", "season", "fillers", "manga", "studio", "watch-order"]) await mkdir(new URL(d + "/", EN), { recursive: true });
 
   const FORMAT = { TV: "TV series", TV_SHORT: "TV short", MOVIE: "Movie", SPECIAL: "Special", OVA: "OVA", ONA: "Web series (ONA)", MUSIC: "Music video" };
   const STATUS = { RELEASING: "Airing", NOT_YET_RELEASED: "Not yet aired", FINISHED: "Finished", HIATUS: "On hiatus", CANCELLED: "Cancelled" };
@@ -30,6 +30,11 @@ export async function buildEn(ctx) {
     let m;
     if (enPath === "fillers.html") return "fillers.html";
     if (enPath === "mangas.html") return "mangas.html";
+    if (enPath === "studios.html") return "studios.html";
+    if (enPath === "watch-order.html") return "ordre-de-visionnage.html";
+    if (enPath === "new-on-streaming.html") return "nouveautes.html";
+    if ((m = enPath.match(/^studio\/(.+)$/))) return "studio/" + m[1];
+    if ((m = enPath.match(/^watch-order\/(.+)$/))) return "ordre/" + m[1];
     if ((m = enPath.match(/^manga\/(.+)$/))) return "manga/" + m[1];
     if ((m = enPath.match(/^fillers\/(.+)$/))) return "fillers/" + m[1];
     if ((m = enPath.match(/^anime\/(.+)$/))) return "anime/" + m[1];
@@ -114,7 +119,7 @@ ${body}
       <a class="logo" href="${R}"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFC857"/><path d="M12 9.5v13l10.5-6.5z" fill="#101223"/></svg><span>${esc(cfg.siteName)}</span></a>
       <p>The free guide to find where to legally stream any anime, anywhere in the world: USA, Canada, UK, Europe, Latin America, Asia… We don't host any video: we only link to official platforms.</p>
     </div>
-    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}fillers.html">Filler lists</a><a href="${R}mangas.html">Where to read manga</a><a href="${R}my-list.html">My list</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
+    <div><h3>Explore</h3><a href="${R}calendar.html">Release schedule</a><a href="${R}catalog.html">All anime</a><a href="${R}platforms.html">By platform</a><a href="${R}genres.html">By genre</a><a href="${R}studios.html">By studio</a><a href="${R}watch-order.html">Watch orders</a><a href="${R}new-on-streaming.html">New on streaming</a><a href="${R}fillers.html">Filler lists</a><a href="${R}mangas.html">Where to read manga</a><a href="${R}my-list.html">My list</a><a href="${R}${seasonPathEn(data.current)}">${esc(seasonLabel(data.current))} season</a><a href="${R}${seasonPathEn(data.next)}">${esc(seasonLabel(data.next))} season</a></div>
     <div><h3>Information</h3><a href="${R}about.html">About</a><a href="${R}legal.html">Legal notice</a><a href="${R}privacy.html">Privacy</a><a href="${BASE}">Version française</a></div>
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily.</div>
@@ -183,10 +188,11 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
           ${m.status ? `<span class="fact">${esc(STATUS[m.status] || m.status)}</span>` : ""}
           ${eps ? `<span class="fact">${eps}</span>` : ""}
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1)}/10</span>` : ""}
-          ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
+          ${studio ? (studioHref(X, studio, "en", rel) ? `<a class="fact" href="${studioHref(X, studio, "en", rel)}">${esc(studio)}</a>` : `<span class="fact">${esc(studio)}</span>`) : ""}
           ${watchFact(m, "en")}
         </div>
         ${(() => { const s = sequelOf(m); if (!s) return ""; const when = s.season && s.seasonYear ? `${SEASON[s.season]} ${s.seasonYear}` : s.startDate?.year ? String(s.startDate.year) : ""; return `<p class="small">📢 Sequel announced: <a href="${esc(s.slug)}.html">${esc(nameOf(s))}</a>${when ? `, expected ${esc(when)}` : ", date TBA"}.</p>`; })()}
+        ${guideLine(X, m, "en", rel, esc)}
         ${heroCtas}
         ${tools(m, name)}
       </div>
@@ -381,6 +387,7 @@ ${adSlot()}`,
   </div>
 </section>
 ${firstDay ? `<section><div class="sec-h"><h2 class="sec">Today's releases</h2><a href="calendar.html">Full week →</a></div><p class="sub" data-tdl>${esc(firstDay[1].label)}, in your time zone.</p><div class="eps" data-today>${[...firstDay[1].items.map((e, i) => [e, i < 8]), ...(days[1] ? days[1][1].items.map((e) => [e, false]) : [])].map(([e, v]) => v ? epRow(e, "") : epRow(e, "").replace('<a class="ep"', '<a hidden class="ep"')).join("")}</div></section>` : ""}
+${trendStrip(X, "en", "", { esc, nameOf, poster })}
 ${adSlot()}
 <section><div class="sec-h"><h2 class="sec">Popular right now</h2><a href="catalog.html">Full catalog →</a></div><div class="pgrid">${popular.map((m) => card(m, "")).join("")}</div></section>
 <section><div class="sec-h"><h2 class="sec">By platform</h2><a href="platforms.html">All platforms →</a></div><div class="pchips">${bigFirst.slice(0, 12).map((pl) => `<a class="pchip p-${pl.cls}" href="platform/${pl.slug}.html"><i></i>${esc(pl.name)}<small>${num(pl.list.length)}</small></a>`).join("")}</div></section>
@@ -406,6 +413,9 @@ ${mangaHome({ lang: "en", esc, slugify })}
 
   // ---------- Manga (where to read legally) ----------
   for (const p of mangaPages({ lang: "en", page, esc, slugify, poster, cover, animeById: byId, animeCard: card, base: BASE })) await write(p.path, p.html);
+
+  // ---------- Studios, watch orders, new on streaming ----------
+  for (const p of extrasPages({ lang: "en", X, news, data, page, esc, card, poster, cover, nameOf, chipFor: (m) => chips(m, 2), TZ })) await write(p.path, p.html);
 
   return written;
 }
