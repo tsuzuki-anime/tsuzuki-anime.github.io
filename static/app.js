@@ -119,15 +119,21 @@
   }
   function find(idx, q, max) {
     var v = norm(q); if (!v) return [];
-    var starts = [], inName = [], inAlt = [];
+    // Classement : la popularité compte (la liste est triée par popularité), avec un bonus quand le titre commence par la recherche
+    var hits = [], sv = " " + v;
     for (var i = 0; i < idx.length; i++) {
-      var x = idx[i];
-      if (x._n.indexOf(v) === 0) starts.push(x);
-      else if (x._n.indexOf(v) > -1) inName.push(x);
-      else if (x._a.indexOf(v) > -1) inAlt.push(x);
-      if (starts.length >= max) break;
+      var x = idx[i], n = x._n, s;
+      if (n === v) s = i - 300;
+      else if (n.indexOf(v) === 0) s = i;
+      else if ((" " + n).indexOf(sv) > -1) s = i + 40;
+      else if ((" " + x._a).indexOf(sv) > -1) s = i + 60;
+      else if (n.indexOf(v) > -1) s = i + 150;
+      else if (x._a.indexOf(v) > -1) s = i + 250;
+      else continue;
+      hits.push([s, x]);
     }
-    return starts.concat(inName, inAlt).slice(0, max);
+    hits.sort(function (a, b) { return a[0] - b[0]; });
+    return hits.slice(0, max).map(function (h) { return h[1]; });
   }
   function renderRes(list, rel) {
     return list.length ? list.map(function (x) {
