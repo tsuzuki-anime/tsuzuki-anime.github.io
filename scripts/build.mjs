@@ -323,9 +323,8 @@ const SIM_POOL = POPULAR.slice(0, 4000).map((o, i) => ({ o, i, g: o.genres || []
 const SIM_CACHE = new Map();
 // Suite annoncée (pas encore sortie) et temps pour tout regarder
 function sequelOf(m) {
-  for (const e of m.relations?.edges || []) {
-    if (e.relationType !== "SEQUEL") continue;
-    const s = byId.get(e.node?.id);
+  for (const id of m.seq || []) {
+    const s = byId.get(id);
     if (s && s.status === "NOT_YET_RELEASED") return s;
   }
   return null;
@@ -343,15 +342,14 @@ function seriesHours(m) {
   const seen = new Set([m.id]), todo = [m];
   while (todo.length) {
     const x = todo.pop();
-    for (const e of x.relations?.edges || []) {
-      if (e.relationType !== "SEQUEL" && e.relationType !== "PREQUEL") continue;
-      const y = byId.get(e.node?.id);
+    for (const id of [...(x.seq || []), ...(x.pre || [])]) {
+      const y = byId.get(id);
       if (!y || seen.has(y.id) || !SERIES_FMT.has(y.format)) continue;
       seen.add(y.id); todo.push(y);
     }
   }
   let mins = 0;
-  for (const id of seen) { const y = byId.get(id), n = y.episodes || (y.nextAiringEpisode ? y.nextAiringEpisode.episode - 1 : 0); if (n > 0 && y.duration) mins += n * y.duration; }
+  for (const id of seen) { const y = byId.get(id); if (y.status === "NOT_YET_RELEASED") continue; const n = y.episodes || (y.nextAiringEpisode ? y.nextAiringEpisode.episode - 1 : 0); if (n > 0 && y.duration) mins += n * y.duration; }
   const h = seen.size > 1 ? Math.round(mins / 60) : 0;
   for (const id of seen) SERIES_CACHE.set(id, h);
   return h;
