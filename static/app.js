@@ -61,6 +61,7 @@
   });
   function inRegion(tag) { var p = String(tag).split("~"), d = W.s[p[0]]; return !!d && d[1].indexOf(REGION) > -1 && !(p[1] && p[1].split(",").indexOf(REGION) > -1); }
   function regional(list) { return (list || []).filter(inRegion).map(function (t) { return String(t).split("~")[0]; }); }
+  window.TZR = regional;
   function chipW(n) { var d = W.s[n]; return '<span class="chip p-' + (d ? d[0] : "other") + '"><i></i>' + esc(n) + "</span>"; }
   function applyRegion() {
     document.querySelectorAll("select[data-region]").forEach(function (s) { s.value = (!MANUAL && s.querySelector('option[value="auto"]')) ? "auto" : REGION; });
@@ -134,7 +135,7 @@
         "<span><b>" + esc(x.t) + "</b>" + (x.y ? "<small>" + esc(x.y) + "</small>" : "") + '</span><span class="chips">' + chips(x) + "</span></a>";
     }).join("") : '<p class="empty">' + T.empty + "</p>";
   }
-  function bindSearch(input, out, rel, max) {
+  function bindSearch(input, out, rel, max, keep) {
     var run = function () {
       if (!input.value.trim()) { out.innerHTML = ""; out.hidden = true; return; }
       loadIdx(rel).then(function (idx) { out.innerHTML = renderRes(find(idx, input.value, max), rel); out.hidden = false; });
@@ -145,7 +146,7 @@
       if (e.key === "Enter") { var a = out.querySelector("a.res"); if (a) location.href = a.href; }
       if (e.key === "Escape") { out.hidden = true; input.blur(); }
     });
-    document.addEventListener("click", function (e) { if (!out.contains(e.target) && e.target !== input) out.hidden = true; });
+    if (!keep) document.addEventListener("click", function (e) { if (!out.contains(e.target) && e.target !== input) out.hidden = true; });
   }
   // Recherche de l'en-tête (toutes les pages)
   document.querySelectorAll("input[data-search]").forEach(function (inp) {
@@ -154,7 +155,7 @@
   // Grande recherche de l'accueil
   var q = document.getElementById("q"), R = document.getElementById("results");
   if (q && R) {
-    bindSearch(q, R, "", 8);
+    bindSearch(q, R, "", 8, true);
     if (location.hash === "#q") q.focus();
   }
   // « Surprends-moi » : un animé au hasard, avec une plateforme légale dans la région du visiteur
@@ -351,7 +352,8 @@
   });
   var day = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
   document.querySelectorAll("time[data-d]").forEach(function (t) { t.textContent = day.format(new Date(+t.dataset.d * 1000)); });
-  document.querySelectorAll("[data-tzl]").forEach(function (s) { s.textContent = EN ? "(your local time)" : "(heure locale)"; });
+  var city = tz.split("/").pop().replace(/_/g, " ");
+  document.querySelectorAll("[data-tzl]").forEach(function (s) { s.textContent = EN ? "(" + city + " time)" : "(heure de " + city + ")"; });
   // Accueil : « Les sorties du jour » selon le jour du visiteur
   var box = document.querySelector("[data-today]");
   if (box) {
@@ -363,14 +365,14 @@
     });
     var lbl = document.querySelector("[data-tdl]"), dl = day.format(now);
     if (mine.length) box.querySelectorAll(".ep").forEach(function (r) { r.hidden = mine.indexOf(r) < 0; });
-    if (lbl && mine.length) lbl.textContent = dl.charAt(0).toUpperCase() + dl.slice(1) + (EN ? ", in your time zone." : ", à ton heure locale.");
+    if (lbl && mine.length) lbl.textContent = dl.charAt(0).toUpperCase() + dl.slice(1) + (EN ? ", " + city + " time." : ", heure de " + city + ".");
   }
 })();
 // « Ma liste » (favoris sans compte, gardés dans ce navigateur) et bouton « Partager »
 (function () {
   var EN = document.documentElement.lang === "en";
-  var L = EN ? { add: "Add to my list", on: "In my list", share: "Share", copied: "Link copied!", rm: "Remove", shareList: "Share my list", added: function (n) { return n + " anime added to your list."; } }
-             : { add: "Ajouter à ma liste", on: "Dans ma liste", share: "Partager", copied: "Lien copié !", rm: "Retirer", shareList: "Partager ma liste", added: function (n) { return n + " animé" + (n > 1 ? "s ajoutés" : " ajouté") + " à ta liste."; } };
+  var L = EN ? { add: "Add to my list", on: "In my list", share: "Share", copied: "Link copied!", rm: "Remove", shareList: "Share my list", cal: "Add to calendar", subs: function (p, n, t) { return "With " + p + ", you can watch " + n + " of the " + t + " anime in your list."; }, added: function (n) { return n + " anime added to your list."; } }
+             : { add: "Ajouter à ma liste", on: "Dans ma liste", share: "Partager", copied: "Lien copié !", rm: "Retirer", shareList: "Partager ma liste", cal: "Ajouter à l'agenda", subs: function (p, n, t) { return "Avec " + p + ", tu peux regarder " + n + " animé" + (n > 1 ? "s" : "") + " sur " + t + " de ta liste."; }, added: function (n) { return n + " animé" + (n > 1 ? "s ajoutés" : " ajouté") + " à ta liste."; } };
   var KEY = "tz-list";
   function load() { try { var a = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} }
@@ -405,6 +407,24 @@
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, fallback); else fallback();
     });
   });
+  // « Ajouter à l'agenda » : fichier .ics avec les prochains épisodes (un par semaine)
+  document.querySelectorAll("[data-ics]").forEach(function (b) {
+    b.querySelector("span").textContent = L.cal;
+    b.addEventListener("click", function () {
+      var t = +b.dataset.ics, ep = +b.dataset.ep, tot = +b.dataset.tot || 0, dur = +b.dataset.dur || 24, title = b.dataset.t || document.title;
+      var cnt = tot ? Math.max(1, tot - ep + 1) : 12, url = location.href.split("#")[0];
+      var f = function (d) { return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); };
+      var x = function (s) { return String(s).replace(/([\\,;])/g, "\\$1"); };
+      var ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//tsuzuki//anime//EN", "BEGIN:VEVENT", "UID:" + b.dataset.s + "-" + t + "@tsuzuki", "DTSTAMP:" + f(new Date()),
+        "DTSTART:" + f(new Date(t * 1000)), "DTEND:" + f(new Date((t + dur * 60) * 1000)), "RRULE:FREQ=WEEKLY;COUNT=" + cnt,
+        "SUMMARY:" + x(title + (EN ? " - new episode" : " - nouvel épisode")), "URL:" + url, "DESCRIPTION:" + x(url),
+        "BEGIN:VALARM", "TRIGGER:-PT10M", "ACTION:DISPLAY", "DESCRIPTION:" + x(title), "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+      a.download = (b.dataset.s || "anime") + ".ics";
+      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    });
+  });
   // Page « Ma liste »
   var AIR = null, NXF = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   var g = document.getElementById("mylist"), empty = document.getElementById("mylist-empty"), sb = document.getElementById("mylist-share"), msg = document.getElementById("mylist-msg");
@@ -434,6 +454,25 @@
       render(); count();
     });
     render();
+    // « Quel abonnement pour ma liste ? » : plateforme qui couvre le plus d'animés de la liste dans la région du visiteur
+    var subsBox = document.createElement("p"); subsBox.className = "small"; subsBox.hidden = true; subsBox.style.cssText = "margin:0 0 14px;font-weight:600";
+    g.parentNode.insertBefore(subsBox, g);
+    var SIDX = null;
+    var subs = function () {
+      var a = load();
+      if (!SIDX || !window.TZR || a.length < 2) { subsBox.hidden = true; return; }
+      var c = {};
+      a.forEach(function (x) { var e = SIDX[x.s]; if (!e) return; window.TZR(e.w).forEach(function (p) { c[p] = (c[p] || 0) + 1; }); });
+      var top = Object.keys(c).sort(function (p, q) { return c[q] - c[p]; });
+      if (!top.length) { subsBox.hidden = true; return; }
+      subsBox.textContent = "📺 " + L.subs(top[0], c[top[0]], a.length) + (top[1] ? " · " + top.slice(1, 3).map(function (p) { return p + " " + c[p] + "/" + a.length; }).join(" · ") : "");
+      subsBox.hidden = false;
+    };
+    fetch(document.documentElement.getAttribute("data-idx") || "search.json").then(function (r) { return r.json(); }).then(function (d) {
+      SIDX = {}; d.forEach(function (x) { SIDX[x.u.replace(/^anime\//, "").replace(/\.html$/, "")] = x; }); subs();
+    }).catch(function () {});
+    g.addEventListener("click", function () { setTimeout(subs, 0); });
+    window.addEventListener("storage", function () { setTimeout(subs, 0); });
     // Prochain épisode de chaque animé en cours de diffusion
     fetch((document.documentElement.getAttribute("data-idx") || "search.json").replace("search.json", "airing.json")).then(function (r) { return r.json(); }).then(function (d) { AIR = d; render(); }).catch(function () {});
     // « Partager ma liste » : un lien qui contient les animés de la liste (#l=slug1,slug2…)
