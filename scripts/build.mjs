@@ -334,6 +334,34 @@ function watchHours(m) {
   const n = m.episodes || (m.nextAiringEpisode ? m.nextAiringEpisode.episode - 1 : 0);
   return n > 0 && m.duration ? Math.round((n * m.duration) / 60) : 0;
 }
+// Toute la série : on suit les suites et préquelles (saisons TV uniquement, sans films ni spéciaux)
+const SERIES_FMT = new Set(["TV", "TV_SHORT", "ONA"]);
+const SERIES_CACHE = new Map();
+function seriesHours(m) {
+  if (!SERIES_FMT.has(m.format)) return 0;
+  if (SERIES_CACHE.has(m.id)) return SERIES_CACHE.get(m.id);
+  const seen = new Set([m.id]), todo = [m];
+  while (todo.length) {
+    const x = todo.pop();
+    for (const e of x.relations?.edges || []) {
+      if (e.relationType !== "SEQUEL" && e.relationType !== "PREQUEL") continue;
+      const y = byId.get(e.node?.id);
+      if (!y || seen.has(y.id) || !SERIES_FMT.has(y.format)) continue;
+      seen.add(y.id); todo.push(y);
+    }
+  }
+  let mins = 0;
+  for (const id of seen) { const y = byId.get(id), n = y.episodes || (y.nextAiringEpisode ? y.nextAiringEpisode.episode - 1 : 0); if (n > 0 && y.duration) mins += n * y.duration; }
+  const h = seen.size > 1 ? Math.round(mins / 60) : 0;
+  for (const id of seen) SERIES_CACHE.set(id, h);
+  return h;
+}
+const watchFact = (m, lang) => {
+  const h = watchHours(m), t = seriesHours(m), loc = lang === "fr" ? "fr-BE" : "en-US", n = (x) => x.toLocaleString(loc);
+  if (t > h && t >= 2) return `<span class="fact" title="${lang === "fr" ? "Durée de visionnage" : "Watch time"}">⏱ ${h >= 1 ? (lang === "fr" ? `${n(h)} h cette saison · ` : `${n(h)} h this season · `) : ""}~${n(t)} h ${lang === "fr" ? "toute la série" : "whole series"}</span>`;
+  if (h >= 2) return `<span class="fact" title="${lang === "fr" ? "Durée de visionnage" : "Watch time"}">⏱ ${n(h)} h ${lang === "fr" ? "pour tout voir" : "to watch it all"}</span>`;
+  return "";
+};
 function similarOf(m, n = 6) {
   if (SIM_CACHE.has(m.id)) return SIM_CACHE.get(m.id);
   const g = new Set(m.genres || []);
@@ -432,7 +460,7 @@ function animePage(m) {
           ${m.episodes ? `<span class="fact">${m.episodes} épisode${m.episodes > 1 ? "s" : ""}</span>` : ""}
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1).replace(".", ",")}/10</span>` : ""}
           ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
-          ${watchHours(m) >= 2 ? `<span class="fact" title="Durée totale de visionnage">⏱ ${watchHours(m).toLocaleString("fr-BE")} h pour tout voir</span>` : ""}
+          ${watchFact(m, "fr")}
         </div>
         ${(() => { const s = sequelOf(m); if (!s) return ""; const when = s.season && s.seasonYear ? `${SEASON_FR[s.season]} ${s.seasonYear}` : s.startDate?.year ? String(s.startDate.year) : ""; return `<p class="small">📢 Suite annoncée : <a href="${esc(s.slug)}.html">${esc(nameOf(s))}</a>${when ? `, prévue pour ${esc(when)}` : ", date à venir"}.</p>`; })()}
         ${links.length ? `<div class="ctas">${links.map((l) => `<a class="cta p-${PCLASS[l.site]}" href="${esc(l.url)}" rel="noopener nofollow" target="_blank"><i></i>Regarder sur ${esc(l.site)}</a>`).join("")}${trailer ? `<a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a>` : ""}</div>` : `<p class="nolink">Aucune plateforme légale annoncée pour l'instant.</p>${trailer ? `<div class="ctas"><a class="cta ghost" href="${esc(trailer)}" rel="noopener nofollow" target="_blank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Bande-annonce</a></div>` : ""}`}
@@ -726,7 +754,7 @@ await writeFile(new URL("airing.json", OUT), JSON.stringify(Object.fromEntries(d
 }
 // ---------- Version anglaise ----------
 const { buildEn } = await import("./build-en.mjs");
-const enPaths = await buildEn({ sequelOf, watchHours, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
+const enPaths = await buildEn({ sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
 const allPaths = [...pages.filter((p) => p.path !== "404.html" && p.path !== "ma-liste.html").map((p) => p.path), ...enPaths.filter((p) => p !== "en/my-list.html")];
 {
