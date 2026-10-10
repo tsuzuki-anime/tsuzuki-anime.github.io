@@ -2,7 +2,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 
 export async function buildEn(ctx) {
-  const { similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
+  const { sequelOf, watchHours, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ } = ctx;
 
   const { fillerPages, fillerHome } = await import("./fillers.mjs");
   const { mangaPages, mangaBox, mangaHome } = await import("./mangas.mjs");
@@ -99,7 +99,7 @@ ${adsHead}
       <a href="${R}fillers.html">Fillers</a>
       <a href="${R}mangas.html">Manga</a>
       <a class="mylist" href="${R}my-list.html" title="My list" aria-label="My list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span class="favc" data-favc hidden></span></a>
-      <label class="hreg" title="Your region: platforms shown adapt to it"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Your region">${REGION_IDS.map((r) => `<option value="${r}">${esc(REG[r][1])}</option>`).join("")}</select></label>
+      <label class="hreg" title="Streaming region: catalogs differ by country, platforms shown adapt to it"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><select data-region aria-label="Your region">${REGION_IDS.map((r) => `<option value="${r}">${esc(REG[r][1])}</option>`).join("")}</select></label>
       <div class="hsearch" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" data-search data-rel="${rel}" placeholder="Search an anime…" aria-label="Search an anime" autocomplete="off"><div class="hres results" hidden></div></div>
       <a class="lang" href="${BASE}${(fr || "index.html").replace(/index\.html$/, "")}" hreflang="fr" lang="fr" title="Version française">FR</a>
     </nav>
@@ -184,7 +184,9 @@ ${!wl.length && fam ? `<p>No streaming link is known for ${esc(name)} yet, but <
           ${eps ? `<span class="fact">${eps}</span>` : ""}
           ${m.averageScore ? `<span class="fact score">★ ${(m.averageScore / 10).toFixed(1)}/10</span>` : ""}
           ${studio ? `<span class="fact">${esc(studio)}</span>` : ""}
+          ${watchHours(m) >= 2 ? `<span class="fact" title="Total watch time">⏱ ${watchHours(m).toLocaleString("en-US")} h to watch it all</span>` : ""}
         </div>
+        ${(() => { const s = sequelOf(m); if (!s) return ""; const when = s.season && s.seasonYear ? `${SEASON[s.season]} ${s.seasonYear}` : s.startDate?.year ? String(s.startDate.year) : ""; return `<p class="small">📢 Sequel announced: <a href="${esc(s.slug)}.html">${esc(nameOf(s))}</a>${when ? `, expected ${esc(when)}` : ", date TBA"}.</p>`; })()}
         ${heroCtas}
         ${tools(m, name)}
       </div>
