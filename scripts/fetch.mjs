@@ -115,33 +115,94 @@ for (const s of [cur, nxt]) {
 
 // Catalogue complet : TOUS les animés d'AniList (séries, films, OAV, ONA, spéciaux, titres niches compris),
 // récupérés année par année selon leur date de sortie. Seuls les clips musicaux et les contenus adultes sont exclus.
+// Pour ménager AniList, ce gros chargement n'a lieu qu'une fois par semaine (le dimanche). Les autres jours,
+// on repart du catalogue déjà publié (anime-data.json) et on ne recharge que les animés en cours et les saisons.
+// Si ce catalogue est absent, incomplet ou trop ancien, le chargement complet est fait comme avant.
 const RANGE_Q = `query ($from: FuzzyDateInt, $to: FuzzyDateInt, $page: Int) {
   Page(page: $page, perPage: 50) {
     pageInfo { hasNextPage }
     media(type: ANIME, isAdult: false, format_not: MUSIC, startDate_greater: $from, startDate_lesser: $to, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
   }
 }`;
-let catalogCount = 0;
-const ranges = [];
-for (let year = now.getUTCFullYear() + 2; year >= 1960; year--) ranges.push({ from: (year - 1) * 10000 + 1231, to: (year + 1) * 10000, label: String(year) });
-ranges.push({ from: 1, to: 19600000, label: "avant 1960" });
-for (const r of ranges) {
-  const list = await allPages(RANGE_Q, { from: r.from, to: r.to }, (p) => p.media, 60);
-  list.forEach((m) => add(m, "catalog"));
-  catalogCount += list.length;
-  console.log(`  ${r.label} : ${list.length}`);
-}
-console.log(`Catalogue : ${catalogCount} animés`);
-// Animés annoncés, y compris ceux sans date de sortie
-const UPCOMING_Q = `query ($page: Int) {
+const STATUS_Q = `query ($status: MediaStatus, $page: Int) {
   Page(page: $page, perPage: 50) {
     pageInfo { hasNextPage }
-    media(type: ANIME, isAdult: false, format_not: MUSIC, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
+    media(type: ANIME, isAdult: false, format_not: MUSIC, status: $status, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
   }
 }`;
-const upcoming = await allPages(UPCOMING_Q, {}, (p) => p.media, 40);
-upcoming.forEach((m) => add(m, "upcoming"));
-console.log(`À venir : ${upcoming.length} animés`);
+const IDS_Q = `query ($ids: [Int], $page: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo { hasNextPage }
+    media(type: ANIME, id_in: $ids) { ${MEDIA_FIELDS} }
+  }
+}`;
+async function liveAnimeData() {
+  try {
+    const r = await fetch(`${SITE_URL}/anime-data.json?t=${Date.now()}`, { signal: AbortSignal.timeout(180000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return Array.isArray(j.media) && j.fullAt ? j : null;
+  } catch { return null; }
+}
+let fullAt = now.toISOString();
+const seasonIds = new Set(media.keys()); // déjà rechargés aujourd'hui par les requêtes de saison
+let full = now.getUTCDay() === 0 || process.env.FULL_FETCH === "1";
+let cache = null;
+if (!full) {
+  cache = await liveAnimeData();
+  const age = cache ? now - new Date(cache.fullAt) : Infinity;
+  const live = cache ? await liveCount("search.json") : 0;
+  if (!cache) console.log("Catalogue publié introuvable : chargement complet.");
+  else if (!(age < 6.5 * 86400000)) console.log("Catalogue publié trop ancien : chargement complet.");
+  else if (cache.media.length < Math.max(Math.round(live * 0.95), 15000)) console.log(`Catalogue publié incomplet (${cache.media.length}) : chargement complet.`);
+  else {
+    // Les étiquettes des saisons actuelle et suivante sont recalculées aujourd'hui
+    const fresh = new Set([`${cur.season}-${cur.year}`, `${nxt.season}-${nxt.year}`, "airing"]);
+    for (const m of cache.media) {
+      const keep = (m.tags || []).filter((t) => !fresh.has(t));
+      const c = media.get(m.id);
+      // animé déjà rechargé par les saisons ci-dessus : on garde ses données du jour et on ajoute ses anciennes étiquettes
+      if (c) c.tags = [...new Set([...(c.tags || []), ...keep])];
+      else media.set(m.id, { ...m, tags: keep });
+    }
+    fullAt = cache.fullAt;
+    console.log(`Catalogue repris du site (${cache.media.length} animés, complet du ${cache.fullAt.slice(0, 10)}) : mise à jour légère.`);
+  }
+  if (!cache || fullAt !== cache.fullAt) full = true;
+}
+if (full) {
+  let catalogCount = 0;
+  const ranges = [];
+  for (let year = now.getUTCFullYear() + 2; year >= 1960; year--) ranges.push({ from: (year - 1) * 10000 + 1231, to: (year + 1) * 10000, label: String(year) });
+  ranges.push({ from: 1, to: 19600000, label: "avant 1960" });
+  for (const r of ranges) {
+    const list = await allPages(RANGE_Q, { from: r.from, to: r.to }, (p) => p.media, 60);
+    list.forEach((m) => add(m, "catalog"));
+    catalogCount += list.length;
+    console.log(`  ${r.label} : ${list.length}`);
+  }
+  console.log(`Catalogue : ${catalogCount} animés`);
+  // Animés annoncés, y compris ceux sans date de sortie
+  const upcoming = await allPages(STATUS_Q, { status: "NOT_YET_RELEASED" }, (p) => p.media, 40);
+  upcoming.forEach((m) => add(m, "upcoming"));
+  console.log(`À venir : ${upcoming.length} animés`);
+} else {
+  // Mise à jour légère : tous les animés en cours de diffusion…
+  const done = new Set(seasonIds);
+  const releasing = await allPages(STATUS_Q, { status: "RELEASING" }, (p) => p.media, 30);
+  releasing.forEach((m) => { add(m, "catalog"); done.add(m.id); });
+  console.log(`En cours : ${releasing.length} animés`);
+  // …puis ceux qui étaient « en cours » ou « à venir » (date passée) et ont peut-être changé d'état
+  const today = now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
+  const fd = (d) => (d?.year || 0) * 10000 + (d?.month || 0) * 100 + (d?.day || 0);
+  const stale = [...media.values()].filter((m) => !done.has(m.id) && (m.status === "RELEASING" || (m.status === "NOT_YET_RELEASED" && m.startDate?.year && fd(m.startDate) <= today) || (m.nextAiringEpisode && m.nextAiringEpisode.airingAt * 1000 < now.getTime()))).map((m) => m.id);
+  let refreshed = 0;
+  for (let i = 0; i < stale.length && i < 1500; i += 50) {
+    const list = await allPages(IDS_Q, { ids: stale.slice(i, i + 50) }, (p) => p.media, 1);
+    list.forEach((m) => { if (m.isAdult) return; add(m, "catalog"); refreshed++; });
+  }
+  console.log(`Changements d'état vérifiés : ${stale.length} animés, ${refreshed} rechargés`);
+}
 
 const from = Math.floor(now.getTime() / 1000) - 86400;
 const to = from + 9 * 86400;
@@ -243,7 +304,7 @@ try {
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
 await writeFile(
   new URL("../data/anime.json", import.meta.url),
-  JSON.stringify({ fetchedAt: now.toISOString(), current: cur, next: nxt, media: [...media.values()], schedule })
+  JSON.stringify({ fetchedAt: now.toISOString(), fullAt, current: cur, next: nxt, media: [...media.values()], schedule })
 );
 console.log(`OK : ${media.size} animés enregistrés`);
 
@@ -298,7 +359,11 @@ async function liveMangaData() {
   const liveM = await liveCount("manga-search.json");
   const wantM = Math.max(Math.round(Math.max(liveM, prev.length) * 0.97), 3400);
   const fresh = new Map();
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // Comme pour les animés, la liste complète des mangas n'est rechargée qu'une fois par semaine (le dimanche).
+  // Les autres jours, la liste publiée est reprise telle quelle si elle est complète.
+  const weekly = !full && prev.length >= wantM;
+  if (weekly) console.log(`Mangas : liste publiée reprise (${prev.length} titres), rechargement complet le dimanche.`);
+  for (let attempt = 1; attempt <= 3 && !weekly; attempt++) {
     let raw = [];
     try {
       raw = await allMangaPages(100);
