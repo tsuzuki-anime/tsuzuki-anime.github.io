@@ -252,6 +252,7 @@ ${image ? `<meta property="og:image" content="${esc(image)}">\n<meta name="twitt
 <link rel="icon" href="${rel}favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://s4.anilist.co">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="${rel}style.css">
 ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script>` : ""}
@@ -288,7 +289,7 @@ ${body}
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Données et visuels : <a href="https://anilist.co" rel="noopener">AniList</a> (site non affilié) · Horaires à l'heure de Paris et Bruxelles (convertis automatiquement si vous êtes ailleurs), mis à jour chaque jour.</div>
 </footer>
-<script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script src="${rel}world.js" defer></script>
 <script src="${rel}app.js" defer></script>
 </body>
@@ -687,7 +688,7 @@ ${adSlot()}`;
   const nPlat = data.media.filter((m) => streaming(m).length).length;
   const body = `
 <section class="hero">
-  <div class="hero-bg" aria-hidden="true">${heroBg.map((u) => `<img src="${esc(u)}" alt="">`).join("")}</div>
+  <div class="hero-bg" aria-hidden="true">${heroBg.map((u) => `<img src="${esc(u)}" alt="" decoding="async" fetchpriority="low">`).join("")}</div>
   <div class="hero-in">
     <p class="eyebrow">Le guide des animés en streaming légal</p>
     <h1>Tu veux le voir&nbsp;? On te dit <em>où</em>.</h1>
@@ -759,6 +760,8 @@ const IMG_PREFIX = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/larg
 const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
 const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map(wTag), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
+// Petit index des animés les plus populaires : la recherche répond tout de suite pendant que l'index complet arrive
+await writeFile(new URL("search-top.json", OUT), JSON.stringify(search.slice(0, 2500)));
 await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchData()));
 // Copie des données mangas brutes : relue au prochain build pour ne jamais perdre de mangas si AniList répond mal
 await cp(new URL("data/manga.json", root), new URL("manga-data.json", OUT)).catch(() => {});
