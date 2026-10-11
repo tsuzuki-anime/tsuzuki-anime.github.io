@@ -779,7 +779,30 @@ await writeFile(new URL("airing.json", OUT), JSON.stringify(Object.fromEntries(d
 const { buildEn } = await import("./build-en.mjs");
 const enPaths = await buildEn({ X, news, extrasPages, studioHref, guideLine, trendStrip, sequelOf, watchHours, watchFact, similarOf, tools, updNote, wTag, data, cfg, SITE, BASE, OUT, esc, slugify, nameOf, cover, poster, streaming, others, family, worldLinks, SERVICES, REGIONS, PLATFORM_SLUG, WORLD_SLUG, GENRE_PAGES, genreSlug, POPULAR, byId, altTitles, trailerUrl, adSlot, adsHead, dayList, hreflangs, worldPages, platformPages, genrePages, TZ });
 const today = new Date().toISOString().slice(0, 10);
-const allPaths = [...pages.filter((p) => p.path !== "404.html" && p.path !== "ma-liste.html").map((p) => p.path), ...enPaths.filter((p) => p !== "en/my-list.html")];
+// Mangas incomplets ce jour-là (AniList) : on recopie du site en ligne les pages mangas qui manquent,
+// ainsi que la liste et l'index de recherche complets. Aucune page n'est perdue.
+const keptManga = [];
+{
+  let partial = false;
+  try { partial = !!JSON.parse(await readFile(new URL("data/manga.json", root), "utf8")).partial; } catch {}
+  if (partial) {
+    const grab = async (p) => { try { const r = await fetch(`${SITE}/${p}`, { signal: AbortSignal.timeout(30000) }); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; } catch { return null; } };
+    const exists = async (p) => { try { await readFile(new URL(p, OUT)); return true; } catch { return false; } };
+    const liveIdx = await grab("manga-search.json");
+    if (liveIdx) {
+      const list = JSON.parse(liveIdx.toString("utf8"));
+      const todo = [];
+      for (const x of list) for (const p of [x.u, `en/${x.u}`]) if (!(await exists(p))) todo.push(p);
+      for (let i = 0; i < todo.length; i += 16) {
+        await Promise.all(todo.slice(i, i + 16).map(async (p) => { const b = await grab(p); if (b) { await writeFile(new URL(p, OUT), b); keptManga.push(p); } }));
+      }
+      for (const p of ["mangas.html", "en/mangas.html"]) { const b = await grab(p); if (b) await writeFile(new URL(p, OUT), b); }
+      await writeFile(new URL("manga-search.json", OUT), liveIdx);
+      console.log(`Mangas : ${keptManga.length} pages reprises du site en ligne`);
+    }
+  }
+}
+const allPaths = [...new Set([...pages.filter((p) => p.path !== "404.html" && p.path !== "ma-liste.html").map((p) => p.path), ...enPaths.filter((p) => p !== "en/my-list.html"), ...keptManga])];
 {
   // Sitemap découpé en morceaux de 5 000 URL + un index (Google lit mieux les petits fichiers)
   const urls = allPaths.map((p) => `<url><loc>${esc(`${SITE}/${p}`.replace(/index\.html$/, ""))}</loc><lastmod>${today}</lastmod></url>`);
