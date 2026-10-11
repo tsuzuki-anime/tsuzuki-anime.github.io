@@ -212,7 +212,7 @@
     var bar = document.querySelector(".days"), secs = document.querySelectorAll(".dayp");
     if (!bar || !secs.length) return;
     var tz; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return; }
-    if (!tz || tz === "Europe/Brussels" || tz === "Europe/Paris") return;
+    if (!tz) return;
     var EN = document.documentElement.lang === "en";
     var key = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
     var lab = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
@@ -331,7 +331,7 @@
     var moods = JSON.parse(pd.textContent), cur = 0, n = 0;
     var drawPick = function () {
       var m = moods[cur], it = m.items[n % m.items.length];
-      pk.innerHTML = (it.i ? '<img src="' + esc(it.i) + '" alt="">' : "<span></span>") + '<div><span class="k">' + T.mood + esc(m.label) + '</span><a class="t" href="' + it.u + '">' + esc(it.t) + "</a><p>" + T.on + esc(it.p) + '</p><button class="btn" type="button" id="again">' + T.again + "</button></div>";
+      pk.innerHTML = (it.i ? '<img src="' + esc(it.i) + '" alt="">' : "<span></span>") + '<div><span class="k">' + (T.mood === "Envie de " && /^[aeiouyhéèêàâîôû]/i.test(m.label) ? "Envie d'" : T.mood) + esc(m.label) + '</span><a class="t" href="' + it.u + '">' + esc(it.t) + "</a><p>" + T.on + esc(it.p) + '</p><button class="btn" type="button" id="again">' + T.again + "</button></div>";
       document.getElementById("again").onclick = function () { n++; drawPick(); };
     };
     moods.forEach(function (m, i) {
@@ -350,16 +350,19 @@
   var EN = document.documentElement.lang === "en";
   var f = function (z) { return new Intl.DateTimeFormat(EN ? "en-GB" : "fr-FR", { timeZone: z, hour: "2-digit", minute: "2-digit" }); };
   var paris = f("Europe/Paris"), local = f(tz), now = new Date();
-  if (paris.format(now) === local.format(now)) return;
-  document.querySelectorAll("time[data-t]").forEach(function (t) {
-    var d = new Date(+t.dataset.t * 1000);
-    t.textContent = local.format(d);
-    t.title = EN ? "Your local time (" + paris.format(d) + " in Paris)" : "Heure locale (" + paris.format(d) + " à Paris)";
-  });
+  // Même heure qu'à Paris : on ne convertit pas les horaires, mais « Les sorties du jour » suit quand même la date du jour
+  var same = paris.format(now) === local.format(now);
   var day = new Intl.DateTimeFormat(EN ? "en-US" : "fr-FR", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
-  document.querySelectorAll("time[data-d]").forEach(function (t) { t.textContent = day.format(new Date(+t.dataset.d * 1000)); });
   var city = tz.split("/").pop().replace(/_/g, " ");
-  document.querySelectorAll("[data-tzl]").forEach(function (s) { s.textContent = EN ? "(" + city + " time)" : "(heure de " + city + ")"; });
+  if (!same) {
+    document.querySelectorAll("time[data-t]").forEach(function (t) {
+      var d = new Date(+t.dataset.t * 1000);
+      t.textContent = local.format(d);
+      t.title = EN ? "Your local time (" + paris.format(d) + " in Paris)" : "Heure locale (" + paris.format(d) + " à Paris)";
+    });
+    document.querySelectorAll("time[data-d]").forEach(function (t) { t.textContent = day.format(new Date(+t.dataset.d * 1000)); });
+    document.querySelectorAll("[data-tzl]").forEach(function (s) { s.textContent = EN ? "(" + city + " time)" : "(heure de " + city + ")"; });
+  }
   // Accueil : « Les sorties du jour » selon le jour du visiteur
   var box = document.querySelector("[data-today]");
   if (box) {
@@ -371,7 +374,7 @@
     });
     var lbl = document.querySelector("[data-tdl]"), dl = day.format(now);
     if (mine.length) box.querySelectorAll(".ep").forEach(function (r) { r.hidden = mine.indexOf(r) < 0; });
-    if (lbl && mine.length) lbl.textContent = dl.charAt(0).toUpperCase() + dl.slice(1) + (EN ? ", " + city + " time." : ", heure de " + city + ".");
+    if (lbl && mine.length) lbl.textContent = dl.charAt(0).toUpperCase() + dl.slice(1) + (same ? (EN ? ", in your time zone." : ", à l'heure de Paris et Bruxelles.") : (EN ? ", " + city + " time." : ", heure de " + city + "."));
   }
 })();
 // « Ma liste » (favoris sans compte, gardés dans ce navigateur) et bouton « Partager »
