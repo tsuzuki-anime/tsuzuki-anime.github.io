@@ -88,6 +88,7 @@ ${image ? `<meta property="og:image" content="${esc(image)}">\n<meta name="twitt
 <link rel="icon" href="${BASE}favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://s4.anilist.co">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="${BASE}style.css">
 ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script>` : ""}
@@ -124,7 +125,7 @@ ${body}
   </div>
   <div class="wrap foot-legal">© ${new Date().getFullYear()} ${esc(cfg.siteName)} · Data and artwork: <a href="https://anilist.co" rel="noopener">AniList</a> (not affiliated) · Times are converted to your time zone automatically · Updated daily.</div>
 </footer>
-<script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script data-goatcounter="https://tsuzuki.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script src="${BASE}world.js" defer></script>
 <script src="${BASE}app.js" defer></script>
 </body>
@@ -372,7 +373,7 @@ ${adSlot()}`,
       jsonld: { "@context": "https://schema.org", "@type": "WebSite", name: cfg.siteName, url: SITE + "/en/", inLanguage: "en" },
       body: `
 <section class="hero">
-  <div class="hero-bg" aria-hidden="true">${heroBg.map((u) => `<img src="${esc(u)}" alt="">`).join("")}</div>
+  <div class="hero-bg" aria-hidden="true">${heroBg.map((u) => `<img src="${esc(u)}" alt="" decoding="async" fetchpriority="low">`).join("")}</div>
   <div class="hero-in">
     <p class="eyebrow">The legal anime streaming guide</p>
     <h1>Want to watch it? We'll tell you <em>where</em>.</h1>
