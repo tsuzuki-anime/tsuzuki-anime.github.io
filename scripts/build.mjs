@@ -765,6 +765,8 @@ await writeFile(new URL("search-top.json", OUT), JSON.stringify(search.slice(0, 
 await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchData()));
 // Copie des données mangas brutes : relue au prochain build pour ne jamais perdre de mangas si AniList répond mal
 await cp(new URL("data/manga.json", root), new URL("manga-data.json", OUT)).catch(() => {});
+// Catalogue complet tel que récupéré, réutilisé par fetch.mjs les jours sans rechargement complet
+await cp(new URL("data/anime.json", root), new URL("anime-data.json", OUT)).catch(() => {});
 // Nouveautés : état des plateformes et journal des arrivées (relus au prochain build)
 await writeFile(new URL("streaming-state.json", OUT), JSON.stringify(news.state));
 await writeFile(new URL("new-log.json", OUT), JSON.stringify(news.log));
