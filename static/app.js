@@ -110,12 +110,20 @@
   var IMG = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/";
   // Index de recherche, chargé une seule fois et seulement quand on en a besoin
   var idxPromise = null;
+  function prepIdx(d) {
+    d.forEach(function (x) { x._n = norm(x.t); x._a = norm(x.a); if (x.i && x.i.indexOf("http") !== 0) x.i = IMG + x.i; });
+    return d;
+  }
+  var fullIdx = null, topPromise = null;
   function loadIdx(rel) {
-    if (!idxPromise) idxPromise = fetch(IDX || rel + "search.json").then(function (r) { return r.json(); }).then(function (d) {
-      d.forEach(function (x) { x._n = norm(x.t); x._a = norm(x.a); if (x.i && x.i.indexOf("http") !== 0) x.i = IMG + x.i; });
-      return d;
-    });
+    if (!idxPromise) idxPromise = fetch(IDX || rel + "search.json").then(function (r) { return r.json(); }).then(prepIdx).then(function (d) { fullIdx = d; return d; });
     return idxPromise;
+  }
+  // Petit index (animés les plus populaires) pour une recherche instantanée, en attendant l'index complet
+  function loadTop(rel) {
+    if (fullIdx) return Promise.resolve(fullIdx);
+    if (!topPromise) topPromise = fetch((IDX || rel + "search.json").replace(/search\.json$/, "search-top.json")).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(prepIdx).catch(function () { return loadIdx(rel); });
+    return topPromise;
   }
   function find(idx, q, max) {
     var v = norm(q); if (!v) return [];
@@ -144,10 +152,17 @@
   function bindSearch(input, out, rel, max, keep) {
     var run = function () {
       if (!input.value.trim()) { out.innerHTML = ""; out.hidden = true; return; }
-      loadIdx(rel).then(function (idx) { out.innerHTML = renderRes(find(idx, input.value, max), rel); out.hidden = false; });
+      var q = input.value, show = function (idx) { if (input.value === q) { out.innerHTML = renderRes(find(idx, q, max), rel); out.hidden = false; } };
+      if (fullIdx) return show(fullIdx);
+      loadTop(rel).then(function (idx) {
+        if (fullIdx || input.value !== q) return;
+        if (find(idx, q, max).length) show(idx);
+        else { out.innerHTML = '<p class="empty">' + (document.documentElement.lang === "en" ? "Searching…" : "Recherche…") + "</p>"; out.hidden = false; }
+      });
+      loadIdx(rel).then(show);
     };
     input.addEventListener("input", run);
-    input.addEventListener("focus", function () { loadIdx(rel); if (input.value.trim()) run(); });
+    input.addEventListener("focus", function () { loadTop(rel); loadIdx(rel); if (input.value.trim()) run(); });
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") { var a = out.querySelector("a.res"); if (a) location.href = a.href; }
       if (e.key === "Escape") { out.hidden = true; input.blur(); }
