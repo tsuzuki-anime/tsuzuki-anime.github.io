@@ -767,6 +767,8 @@ await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchDat
 await cp(new URL("data/manga.json", root), new URL("manga-data.json", OUT)).catch(() => {});
 // Catalogue complet tel que récupéré, réutilisé par fetch.mjs les jours sans rechargement complet
 await cp(new URL("data/anime.json", root), new URL("anime-data.json", OUT)).catch(() => {});
+// Copie des données Wikidata, reprise par fetch.mjs si Wikidata ne répond pas
+await cp(new URL("data/wikidata.json", root), new URL("wikidata-data.json", OUT)).catch(() => {});
 // Nouveautés : état des plateformes et journal des arrivées (relus au prochain build)
 await writeFile(new URL("streaming-state.json", OUT), JSON.stringify(news.state));
 await writeFile(new URL("new-log.json", OUT), JSON.stringify(news.log));
