@@ -5,6 +5,18 @@ import { writeFile, mkdir, readFile } from "node:fs/promises";
 const API = "https://graphql.anilist.co";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Garde-fou : nombre de titres actuellement en ligne, pour ne jamais publier un site amputé
+// si AniList renvoie des données incomplètes (dans ce cas le site de la veille reste en ligne).
+const SITE_URL = (process.env.SITE_URL || JSON.parse(await readFile(new URL("../config.json", import.meta.url), "utf8")).siteUrl).replace(/\/$/, "");
+async function liveCount(file) {
+  try {
+    const r = await fetch(`${SITE_URL}/${file}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return 0;
+    const j = await r.json();
+    return Array.isArray(j) ? j.length : 0;
+  } catch { return 0; }
+}
+
 async function gql(query, variables, tries = 6) {
   for (let i = 0; i < tries; i++) {
     let res;
@@ -219,6 +231,15 @@ try {
   console.log("Crunchyroll ignoré : " + e.message);
 }
 
+// Garde-fou animés : au moins 95 % du catalogue déjà en ligne (et jamais moins de 15 000 titres)
+{
+  const live = await liveCount("search.json");
+  const want = Math.max(Math.round(live * 0.95), 15000);
+  if (media.size < want) {
+    console.error(`Données incomplètes : ${media.size} animés reçus, au moins ${want} attendus. Publication annulée, le site en ligne est gardé tel quel.`);
+    process.exit(1);
+  }
+}
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
 await writeFile(
   new URL("../data/anime.json", import.meta.url),
@@ -243,20 +264,36 @@ const MANGA_Q = `query ($page: Int) {
     }
   }
 }`;
-try {
-  const raw = await allPages(MANGA_Q, {}, (p) => p.media, 100);
-  const mangas = [];
-  for (const m of raw) {
-    if (!m || m.isAdult) continue;
-    const links = (m.externalLinks || []).filter((l) => l.url && (l.type === "STREAMING" || l.type === "INFO"));
-    if (!links.some((l) => l.type === "STREAMING")) continue;
-    m.externalLinks = links;
-    m.anime = [...new Set((m.relations?.edges || []).filter((e) => e.node?.type === "ANIME" && e.relationType === "ADAPTATION").map((e) => e.node.id))];
-    delete m.relations;
-    mangas.push(m);
+// Garde-fou mangas : AniList renvoie parfois une liste coupée sans erreur. On réessaie jusqu'à 3 fois,
+// et si la liste reste incomplète on annule la publication (le site de la veille reste en ligne).
+{
+  const liveM = await liveCount("manga-search.json");
+  const wantM = Math.max(Math.round(liveM * 0.9), 3000);
+  let mangas = [], raw = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      raw = await allPages(MANGA_Q, {}, (p) => p.media, 100);
+    } catch (e) {
+      console.log(`Mangas : erreur (${e.message})`);
+      raw = [];
+    }
+    mangas = [];
+    for (const m of raw) {
+      if (!m || m.isAdult) continue;
+      const links = (m.externalLinks || []).filter((l) => l.url && (l.type === "STREAMING" || l.type === "INFO"));
+      if (!links.some((l) => l.type === "STREAMING")) continue;
+      m.externalLinks = links;
+      m.anime = [...new Set((m.relations?.edges || []).filter((e) => e.node?.type === "ANIME" && e.relationType === "ADAPTATION").map((e) => e.node.id))];
+      delete m.relations;
+      mangas.push(m);
+    }
+    console.log(`Mangas (essai ${attempt}) : ${mangas.length} avec une plateforme de lecture légale (sur ${raw.length})`);
+    if (mangas.length >= wantM) break;
+    if (attempt < 3) await sleep(90000);
+  }
+  if (mangas.length < wantM) {
+    console.error(`Données incomplètes : ${mangas.length} mangas reçus, au moins ${wantM} attendus. Publication annulée, le site en ligne est gardé tel quel.`);
+    process.exit(1);
   }
   await writeFile(new URL("../data/manga.json", import.meta.url), JSON.stringify({ media: mangas }));
-  console.log(`Mangas : ${mangas.length} avec une plateforme de lecture légale (sur ${raw.length})`);
-} catch (e) {
-  console.log("Mangas ignorés : " + e.message);
 }
