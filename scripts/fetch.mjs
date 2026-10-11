@@ -322,9 +322,9 @@ async function liveMangaData() {
   for (const [id, m] of fresh) merged.set(id, m);
   const mangas = [...merged.values()];
   console.log(`Mangas : ${mangas.length} au total (${fresh.size} mis à jour aujourd'hui, ${mangas.length - fresh.size} repris de la veille)`);
-  if (mangas.length < wantM) {
-    console.error(`Données incomplètes : ${mangas.length} mangas, au moins ${wantM} attendus. Publication annulée, le site en ligne est gardé tel quel.`);
-    process.exit(1);
-  }
-  await writeFile(new URL("../data/manga.json", import.meta.url), JSON.stringify({ media: mangas }));
+  // Liste incomplète : on ne bloque pas le site. Les mangas reçus sont mis à jour, et build.mjs recopie
+  // telles quelles les pages mangas déjà en ligne qui manquent (aucune page perdue).
+  const partial = mangas.length < wantM;
+  if (partial) console.log(`Mangas incomplets : ${mangas.length} sur au moins ${wantM} attendus. Les pages mangas manquantes seront reprises du site en ligne.`);
+  await writeFile(new URL("../data/manga.json", import.meta.url), JSON.stringify({ media: mangas, partial }));
 }
