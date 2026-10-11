@@ -760,6 +760,8 @@ const ST = { RELEASING: "R", FINISHED: "F", NOT_YET_RELEASED: "N" };
 const search = [...data.media].sort(byPop).map((m) => ({ t: nameOf(m), a: [...new Set([m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || []).slice(0, 8)].filter((t) => t && t !== nameOf(m)))].join(" | "), g: (m.genres || []).map((g) => genreSlug[g]).filter(Boolean), s: ST[m.status] || "", u: `anime/${m.slug}.html`, i: cover(m, "large").replace(IMG_PREFIX, ""), y: m.seasonYear || m.startDate?.year || "", p: [...streaming(m), ...others(m)].map((l) => l.site).slice(0, 3), w: worldLinks(m).map(wTag), ...(family(m) && !others(m).length ? { f: streaming(family(m)).map((l) => l.site).slice(0, 2) } : {}) }));
 await writeFile(new URL("search.json", OUT), JSON.stringify(search));
 await writeFile(new URL("manga-search.json", OUT), JSON.stringify(mangaSearchData()));
+// Copie des données mangas brutes : relue au prochain build pour ne jamais perdre de mangas si AniList répond mal
+await cp(new URL("data/manga.json", root), new URL("manga-data.json", OUT)).catch(() => {});
 // Nouveautés : état des plateformes et journal des arrivées (relus au prochain build)
 await writeFile(new URL("streaming-state.json", OUT), JSON.stringify(news.state));
 await writeFile(new URL("new-log.json", OUT), JSON.stringify(news.log));
