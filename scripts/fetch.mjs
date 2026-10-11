@@ -264,35 +264,47 @@ const MANGA_Q = `query ($page: Int) {
     }
   }
 }`;
-// Garde-fou mangas : AniList renvoie parfois une liste coupée sans erreur. On réessaie jusqu'à 3 fois,
-// et si la liste reste incomplète on annule la publication (le site de la veille reste en ligne).
-// AniList coupe parfois la liste en cours de route : une page incomplète est redemandée avant d'arrêter
+// Mangas : AniList renvoie parfois des pages vides ou une liste coupée, sans erreur.
+// 1) chaque page vide est redemandée, puis on passe à la suivante ; 2) jusqu'à 3 passages, en cumulant ce qui arrive ;
+// 3) on fusionne avec la liste publiée la veille (manga-data.json) : un manga n'est jamais perdu à cause d'un mauvais jour.
+// Si malgré tout la liste reste trop courte, la publication est annulée (le site de la veille reste en ligne).
 async function allMangaPages(maxPages = 100) {
   const out = [];
+  let empty = 0;
   for (let page = 1; page <= maxPages; page++) {
     let d = await gql(MANGA_Q, { page });
-    for (let retry = 0; retry < 3 && d.Page.media.length < 50; retry++) {
+    for (let retry = 0; retry < 2 && d.Page.media.length < 50; retry++) {
       console.log(`Mangas : page ${page} incomplète (${d.Page.media.length} titres), nouvel essai…`);
       await sleep(20000);
       d = await gql(MANGA_Q, { page });
     }
     out.push(...d.Page.media);
-    if (d.Page.media.length < 50) break;
+    empty = d.Page.media.length ? 0 : empty + 1;
+    if (empty >= 3) break;
+    await sleep(1500);
   }
   return out;
 }
+async function liveMangaData() {
+  try {
+    const r = await fetch(`${SITE_URL}/manga-data.json?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return Array.isArray(j.media) ? j.media : [];
+  } catch { return []; }
+}
 {
+  const prev = await liveMangaData();
   const liveM = await liveCount("manga-search.json");
-  const wantM = Math.max(Math.round(liveM * 0.97), 3400);
-  let mangas = [], raw = [];
+  const wantM = Math.max(Math.round(Math.max(liveM, prev.length) * 0.97), 3400);
+  const fresh = new Map();
   for (let attempt = 1; attempt <= 3; attempt++) {
+    let raw = [];
     try {
       raw = await allMangaPages(100);
     } catch (e) {
       console.log(`Mangas : erreur (${e.message})`);
-      raw = [];
     }
-    mangas = [];
     for (const m of raw) {
       if (!m || m.isAdult) continue;
       const links = (m.externalLinks || []).filter((l) => l.url && (l.type === "STREAMING" || l.type === "INFO"));
@@ -300,14 +312,18 @@ async function allMangaPages(maxPages = 100) {
       m.externalLinks = links;
       m.anime = [...new Set((m.relations?.edges || []).filter((e) => e.node?.type === "ANIME" && e.relationType === "ADAPTATION").map((e) => e.node.id))];
       delete m.relations;
-      mangas.push(m);
+      fresh.set(m.id, m);
     }
-    console.log(`Mangas (essai ${attempt}) : ${mangas.length} avec une plateforme de lecture légale (sur ${raw.length})`);
-    if (mangas.length >= wantM) break;
+    console.log(`Mangas (passage ${attempt}) : ${fresh.size} reçus d'AniList avec une plateforme de lecture légale`);
+    if (fresh.size >= wantM) break;
     if (attempt < 3) await sleep(90000);
   }
+  const merged = new Map(prev.map((m) => [m.id, m]));
+  for (const [id, m] of fresh) merged.set(id, m);
+  const mangas = [...merged.values()];
+  console.log(`Mangas : ${mangas.length} au total (${fresh.size} mis à jour aujourd'hui, ${mangas.length - fresh.size} repris de la veille)`);
   if (mangas.length < wantM) {
-    console.error(`Données incomplètes : ${mangas.length} mangas reçus, au moins ${wantM} attendus. Publication annulée, le site en ligne est gardé tel quel.`);
+    console.error(`Données incomplètes : ${mangas.length} mangas, au moins ${wantM} attendus. Publication annulée, le site en ligne est gardé tel quel.`);
     process.exit(1);
   }
   await writeFile(new URL("../data/manga.json", import.meta.url), JSON.stringify({ media: mangas }));
