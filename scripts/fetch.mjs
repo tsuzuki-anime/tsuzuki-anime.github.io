@@ -266,13 +266,28 @@ const MANGA_Q = `query ($page: Int) {
 }`;
 // Garde-fou mangas : AniList renvoie parfois une liste coupée sans erreur. On réessaie jusqu'à 3 fois,
 // et si la liste reste incomplète on annule la publication (le site de la veille reste en ligne).
+// AniList coupe parfois la liste en cours de route : une page incomplète est redemandée avant d'arrêter
+async function allMangaPages(maxPages = 100) {
+  const out = [];
+  for (let page = 1; page <= maxPages; page++) {
+    let d = await gql(MANGA_Q, { page });
+    for (let retry = 0; retry < 3 && d.Page.media.length < 50; retry++) {
+      console.log(`Mangas : page ${page} incomplète (${d.Page.media.length} titres), nouvel essai…`);
+      await sleep(20000);
+      d = await gql(MANGA_Q, { page });
+    }
+    out.push(...d.Page.media);
+    if (d.Page.media.length < 50) break;
+  }
+  return out;
+}
 {
   const liveM = await liveCount("manga-search.json");
-  const wantM = Math.max(Math.round(liveM * 0.9), 3000);
+  const wantM = Math.max(Math.round(liveM * 0.97), 3400);
   let mangas = [], raw = [];
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      raw = await allPages(MANGA_Q, {}, (p) => p.media, 100);
+      raw = await allMangaPages(100);
     } catch (e) {
       console.log(`Mangas : erreur (${e.message})`);
       raw = [];
