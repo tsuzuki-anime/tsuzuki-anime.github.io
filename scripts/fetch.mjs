@@ -215,6 +215,59 @@ for (const a of sched) {
 }
 console.log(`Calendrier : ${schedule.length} épisodes`);
 
+// Clé de comparaison des titres (sans accents, majuscules ni ponctuation)
+const key = (s) => String(s || "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, "");
+// ---------- Wikidata (données libres CC0) : titres français, liens Crunchyroll et Netflix ----------
+// Source complémentaire et indépendante d'AniList. Rien n'est remplacé : on ajoute seulement ce qui manque.
+// Placé avant ADN et Crunchyroll : les titres français aident à reconnaître leurs titres (même résultat chaque jour).
+// Si Wikidata ne répond pas, on reprend la copie publiée la veille (wikidata-data.json) pour ne rien perdre.
+async function wikidataRows() {
+  const q = `SELECT ?al ?fr ?cr ?nf WHERE { ?item wdt:P8729 ?al . OPTIONAL { ?item rdfs:label ?fr FILTER(LANG(?fr) = "fr") } OPTIONAL { ?item wdt:P11330 ?cr } OPTIONAL { ?item wdt:P1874 ?nf } }`;
+  try {
+    const r = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, {
+      headers: { Accept: "application/sparql-results+json", "User-Agent": `tsuzuki-bot/1.0 (${SITE_URL})` },
+      signal: AbortSignal.timeout(90000),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const rows = (await r.json()).results.bindings.map((b) => ({ id: +b.al.value, fr: b.fr?.value, cr: b.cr?.value, nf: b.nf?.value }));
+    if (rows.length < 3000) throw new Error(`réponse incomplète (${rows.length})`);
+    return rows;
+  } catch (e) {
+    console.log("Wikidata en direct indisponible (" + e.message + "), copie de la veille utilisée");
+    try {
+      const r = await fetch(`${SITE_URL}/wikidata-data.json?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) });
+      return r.ok ? await r.json() : [];
+    } catch { return []; }
+  }
+}
+{
+  const rows = await wikidataRows();
+  let wFr = 0, wCr = 0, wNf = 0;
+  for (const w of rows) {
+    const m = media.get(w.id);
+    if (!m || !Number.isInteger(w.id)) continue;
+    m.externalLinks = m.externalLinks || [];
+    if (w.cr && /^[A-Z0-9]{6,12}$/.test(w.cr) && !m.externalLinks.some((l) => l.site === "Crunchyroll")) {
+      m.externalLinks.push({ site: "Crunchyroll", url: `https://www.crunchyroll.com/fr/series/${w.cr}`, type: "STREAMING", language: null });
+      wCr++;
+    }
+    if (w.nf && /^\d{5,10}$/.test(w.nf) && !m.externalLinks.some((l) => l.site === "Netflix")) {
+      m.externalLinks.push({ site: "Netflix", url: `https://www.netflix.com/title/${w.nf}`, type: "STREAMING", language: null });
+      wNf++;
+    }
+    if (w.fr && !/^Q\d+$/.test(w.fr)) {
+      const known = [m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || [])].map(key);
+      if (!known.includes(key(w.fr))) {
+        m.synonyms = [...(m.synonyms || []), w.fr];
+        if (!m.titleFr) m.titleFr = w.fr;
+        wFr++;
+      }
+    }
+  }
+  if (rows.length) await writeFile(new URL("../data/wikidata.json", import.meta.url), JSON.stringify(rows)).catch(() => {});
+  console.log(`Wikidata : ${rows.length} fiches, ${wFr} titres français, ${wCr} liens Crunchyroll et ${wNf} liens Netflix ajoutés`);
+}
+
 // ---------- ADN (absent des données AniList) ----------
 // Catalogue public d'ADN, avec une copie de secours dans data/adn-fallback.json
 async function adnCatalog() {
@@ -235,7 +288,6 @@ async function adnCatalog() {
     return JSON.parse(await readFile(new URL("../data/adn-fallback.json", import.meta.url), "utf8"));
   }
 }
-const key = (s) => String(s || "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, "");
 const index = new Map();
 for (const m of media.values()) {
   for (const t of [m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || [])]) {
@@ -290,56 +342,6 @@ try {
   console.log(`Crunchyroll : ${crList.length} séries, ${crAdded} liens ajoutés`);
 } catch (e) {
   console.log("Crunchyroll ignoré : " + e.message);
-}
-
-// ---------- Wikidata (données libres CC0) : titres français, liens Crunchyroll et Netflix ----------
-// Source complémentaire et indépendante d'AniList. Rien n'est remplacé : on ajoute seulement ce qui manque.
-// Si Wikidata ne répond pas, on reprend la copie publiée la veille (wikidata-data.json) pour ne rien perdre.
-async function wikidataRows() {
-  const q = `SELECT ?al ?fr ?cr ?nf WHERE { ?item wdt:P8729 ?al . OPTIONAL { ?item rdfs:label ?fr FILTER(LANG(?fr) = "fr") } OPTIONAL { ?item wdt:P11330 ?cr } OPTIONAL { ?item wdt:P1874 ?nf } }`;
-  try {
-    const r = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, {
-      headers: { Accept: "application/sparql-results+json", "User-Agent": `tsuzuki-bot/1.0 (${SITE_URL})` },
-      signal: AbortSignal.timeout(90000),
-    });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const rows = (await r.json()).results.bindings.map((b) => ({ id: +b.al.value, fr: b.fr?.value, cr: b.cr?.value, nf: b.nf?.value }));
-    if (rows.length < 3000) throw new Error(`réponse incomplète (${rows.length})`);
-    return rows;
-  } catch (e) {
-    console.log("Wikidata en direct indisponible (" + e.message + "), copie de la veille utilisée");
-    try {
-      const r = await fetch(`${SITE_URL}/wikidata-data.json?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) });
-      return r.ok ? await r.json() : [];
-    } catch { return []; }
-  }
-}
-{
-  const rows = await wikidataRows();
-  let wFr = 0, wCr = 0, wNf = 0;
-  for (const w of rows) {
-    const m = media.get(w.id);
-    if (!m || !Number.isInteger(w.id)) continue;
-    m.externalLinks = m.externalLinks || [];
-    if (w.cr && /^[A-Z0-9]{6,12}$/.test(w.cr) && !m.externalLinks.some((l) => l.site === "Crunchyroll")) {
-      m.externalLinks.push({ site: "Crunchyroll", url: `https://www.crunchyroll.com/fr/series/${w.cr}`, type: "STREAMING", language: null });
-      wCr++;
-    }
-    if (w.nf && /^\d{5,10}$/.test(w.nf) && !m.externalLinks.some((l) => l.site === "Netflix")) {
-      m.externalLinks.push({ site: "Netflix", url: `https://www.netflix.com/title/${w.nf}`, type: "STREAMING", language: null });
-      wNf++;
-    }
-    if (w.fr && !/^Q\d+$/.test(w.fr)) {
-      const known = [m.title.romaji, m.title.english, m.title.native, ...(m.synonyms || [])].map(key);
-      if (!known.includes(key(w.fr))) {
-        m.synonyms = [...(m.synonyms || []), w.fr];
-        if (!m.titleFr) m.titleFr = w.fr;
-        wFr++;
-      }
-    }
-  }
-  if (rows.length) await writeFile(new URL("../data/wikidata.json", import.meta.url), JSON.stringify(rows)).catch(() => {});
-  console.log(`Wikidata : ${rows.length} fiches, ${wFr} titres français, ${wCr} liens Crunchyroll et ${wNf} liens Netflix ajoutés`);
 }
 
 // Garde-fou animés : au moins 95 % du catalogue déjà en ligne (et jamais moins de 15 000 titres)
